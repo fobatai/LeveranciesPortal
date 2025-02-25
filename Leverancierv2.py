@@ -17,6 +17,14 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Add pandas options to avoid SettingWithCopyWarning
+import pandas as pd
+pd.options.mode.copy_on_write = True  # This will suppress the warning in newer pandas versions
+
+# Add pandas options to avoid SettingWithCopyWarning
+import pandas as pd
+pd.options.mode.copy_on_write = True  # This will suppress the warning in newer pandas versions
+
 # Stel pagina configuratie in
 st.set_page_config(
     page_title="Leveranciers Portal",
@@ -240,12 +248,28 @@ def generate_login_code(email):
     code = secrets.token_hex(3).upper()  # 6 tekens code
     now = datetime.datetime.now().isoformat()
     
-    conn = sqlite3.connect('leveranciers_portal.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO inlogcodes (email, code, aangemaakt_op) VALUES (?, ?, ?)",
-              (email, code, now))
-    conn.commit()
-    conn.close()
+    # Sla de code op in de sessie voor eenvoudige demo-toegang
+    st.session_state["last_code"] = code
+    
+    # Sla de code op in de database
+    try:
+        conn = sqlite3.connect('leveranciers_portal.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO inlogcodes (email, code, aangemaakt_op) VALUES (?, ?, ?)",
+                  (email, code, now))
+        conn.commit()
+        conn.close()
+    except:
+        try:
+            # Probeer de oude database als de nieuwe nog niet bestaat
+            conn = sqlite3.connect('supplier_portal.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO login_codes (email, code, created_at) VALUES (?, ?, ?)",
+                      (email, code, now))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            st.error(f"Database fout: {str(e)}")
     
     # Voor testen: Toon code in de app in plaats van het verzenden van e-mail
     st.success(f"Inlogcode voor {email}: {code}")
@@ -258,27 +282,51 @@ def verify_login_code(email, code):
         return True
         
     # Controleer of de code geldig is en niet verlopen (15 min geldigheid)
-    conn = sqlite3.connect('leveranciers_portal.db')
-    c = conn.cursor()
-    
-    fifteen_min_ago = (datetime.datetime.now() - datetime.timedelta(minutes=15)).isoformat()
-    
-    c.execute("""
-    SELECT id FROM inlogcodes 
-    WHERE email = ? AND code = ? AND aangemaakt_op > ? AND gebruikt = 0
-    ORDER BY aangemaakt_op DESC LIMIT 1
-    """, (email, code, fifteen_min_ago))
-    
-    result = c.fetchone()
-    
-    if result:
-        # Markeer code als gebruikt
-        c.execute("UPDATE inlogcodes SET gebruikt = 1 WHERE id = ?", (result[0],))
-        conn.commit()
-        conn.close()
-        return True
-    
-    conn.close()
+    try:
+        conn = sqlite3.connect('leveranciers_portal.db')
+        c = conn.cursor()
+        
+        fifteen_min_ago = (datetime.datetime.now() - datetime.timedelta(minutes=15)).isoformat()
+        
+        c.execute("""
+        SELECT id FROM inlogcodes 
+        WHERE email = ? AND code = ? AND aangemaakt_op > ? AND gebruikt = 0
+        ORDER BY aangemaakt_op DESC LIMIT 1
+        """, (email, code, fifteen_min_ago))
+        
+        result = c.fetchone()
+        
+        if result:
+            # Markeer code als gebruikt
+            c.execute("UPDATE inlogcodes SET gebruikt = 1 WHERE id = ?", (result[0],))
+            conn.commit()
+            conn.close()
+            return True
+    except:
+        # Probeer de oude database als de nieuwe niet werkt
+        try:
+            conn = sqlite3.connect('supplier_portal.db')
+            c = conn.cursor()
+            
+            fifteen_min_ago = (datetime.datetime.now() - datetime.timedelta(minutes=15)).isoformat()
+            
+            c.execute("""
+            SELECT id FROM login_codes 
+            WHERE email = ? AND code = ? AND created_at > ? AND used = 0
+            ORDER BY created_at DESC LIMIT 1
+            """, (email, code, fifteen_min_ago))
+            
+            result = c.fetchone()
+            
+            if result:
+                # Markeer code als gebruikt
+                c.execute("UPDATE login_codes SET used = 1 WHERE id = ?", (result[0],))
+                conn.commit()
+                conn.close()
+                return True
+        except Exception as e:
+            print(f"Verificatie fout: {str(e)}")
+            
     return False
 
 def check_email_exists(email):
@@ -286,32 +334,53 @@ def check_email_exists(email):
     if email == "admin@example.com":
         return True
         
-    conn = sqlite3.connect('leveranciers_portal.db')
-    c = conn.cursor()
-    
-    # Controleer of de e-mail bestaat in jobgegevens op dezelfde manier als we controleren in de pagina Supplier Access
-    c.execute("""
-    SELECT COUNT(*) FROM jobs_cache
-    WHERE json_extract(data, '$.Vendor.ObjectContacts') IS NOT NULL
-    """)
-    
-    # Verwerk elke job om te controleren op de e-mail
-    c.execute("""
-    SELECT data FROM jobs_cache
-    WHERE json_extract(data, '$.Vendor.ObjectContacts') IS NOT NULL
-    """)
-    
-    jobs = c.fetchall()
-    conn.close()
-    
-    for job in jobs:
-        data = json.loads(job[0])
-        if 'Vendor' in data and data['Vendor'] is not None and 'ObjectContacts' in data['Vendor']:
-            for contact in data['Vendor']['ObjectContacts']:
-                if 'Employee' in contact and contact['Employee'] is not None:
-                    employee = contact['Employee']
-                    if 'EmailAddress' in employee and employee['EmailAddress'] == email:
-                        return True
+    try:
+        # Poging 1: Gebruik leveranciers_portal.db
+        conn = sqlite3.connect('leveranciers_portal.db')
+        c = conn.cursor()
+        
+        # Controleer of de e-mail bestaat in jobgegevens
+        c.execute("""
+        SELECT COUNT(*) FROM jobs_cache
+        WHERE json_extract(data, '$.Vendor.ObjectContacts') IS NOT NULL
+        """)
+        
+        # Verwerk elke job om te controleren op de e-mail
+        c.execute("""
+        SELECT data FROM jobs_cache
+        WHERE json_extract(data, '$.Vendor.ObjectContacts') IS NOT NULL
+        """)
+        
+        jobs = c.fetchall()
+        conn.close()
+        
+        for job in jobs:
+            data = json.loads(job[0])
+            if 'Vendor' in data and data['Vendor'] is not None and 'ObjectContacts' in data['Vendor']:
+                for contact in data['Vendor']['ObjectContacts']:
+                    if 'Employee' in contact and contact['Employee'] is not None:
+                        employee = contact['Employee']
+                        if 'EmailAddress' in employee and employee['EmailAddress'] == email:
+                            return True
+    except:
+        # Poging 2: Gebruik supplier_portal.db (oude database)
+        try:
+            conn = sqlite3.connect('supplier_portal.db')
+            c = conn.cursor()
+            
+            # Controleer of de e-mail bestaat in jobgegevens
+            c.execute("""
+            SELECT COUNT(*) FROM jobs_cache
+            WHERE data LIKE ?
+            """, (f'%"EmailAddress":"{email}"%',))
+            
+            count = c.fetchone()[0]
+            conn.close()
+            
+            if count > 0:
+                return True
+        except:
+            pass
     
     return False
 
@@ -458,41 +527,107 @@ def login_page():
         st.markdown("<div style='text-align: center;'><h1>📊 Leveranciers Portal</h1></div>", unsafe_allow_html=True)
         st.markdown("<div style='text-align: center; margin-bottom: 30px;'>Beheer en update uw werkorders eenvoudig en efficiënt</div>", unsafe_allow_html=True)
     
-    # Inlogformulier
+    # Monteur login (hoofdgedeelte) - Vereenvoudigd proces
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='stCard'>", unsafe_allow_html=True)
-        st.subheader("💼 Inloggen")
+        st.subheader("🔧 Monteur Toegang")
         
-        with st.form("login_form"):
-            email = st.text_input("E-mailadres")
-            code = st.text_input("Inlogcode (indien u er een heeft)")
+        # Sla e-mail op in session state om het te behouden tussen formulieren
+        if "email" not in st.session_state:
+            st.session_state["email"] = ""
+        
+        # Toon code-formulier alleen na het verzenden van de code
+        if "code_sent" not in st.session_state:
+            st.session_state["code_sent"] = False
             
-            col1, col2 = st.columns(2)
-            with col1:
-                submit_button = st.form_submit_button("Inloggen", use_container_width=True)
-            with col2:
-                send_code_button = st.form_submit_button("Verstuur Inlogcode", use_container_width=True)
-        
-        if send_code_button and email:
-            # Controleer of e-mail bestaat in het systeem
-            is_valid = check_email_exists(email)
-            if is_valid:
-                if generate_login_code(email):
-                    st.success("Inlogcode verstuurd naar uw e-mail. Controleer uw inbox.")
+        # Stap 1: E-mail invoeren
+        if not st.session_state["code_sent"]:
+            with st.form("email_form"):
+                st.markdown("Voer uw e-mailadres in om een verificatiecode te ontvangen:")
+                email = st.text_input("E-mailadres", placeholder="uw@email.nl")
+                send_code_button = st.form_submit_button("Verificatiecode Versturen", use_container_width=True)
+            
+            if send_code_button and email:
+                # Controleer of e-mail bestaat in het systeem
+                is_valid = check_email_exists(email)
+                if is_valid:
+                    if generate_login_code(email):
+                        st.session_state["email"] = email
+                        st.session_state["code_sent"] = True
+                        st.success("Verificatiecode verstuurd! Controleer uw inbox.")
+                        st.rerun()
+                    else:
+                        st.error("Versturen van code mislukt. Probeer het opnieuw.")
                 else:
-                    st.error("Versturen van inlogcode mislukt. Probeer het opnieuw.")
-            else:
-                st.error("E-mailadres niet gevonden in het systeem. Neem contact op met uw beheerder.")
+                    st.error("E-mailadres niet gevonden. Neem contact op met uw beheerder.")
         
-        if submit_button and email and code:
-            if verify_login_code(email, code):
-                st.session_state["logged_in"] = True
-                st.session_state["user_email"] = email
+        # Stap 2: Code invoeren
+        else:
+            email = st.session_state["email"]
+            st.info(f"Verificatiecode is verstuurd naar {email}")
+            
+            # Gebruik de code uit de sessie indien beschikbaar
+            last_code = st.session_state.get("last_code", "")
+            
+            with st.form("code_form"):
+                st.markdown("Voer de ontvangen code in:")
+                code = st.text_input("Verificatiecode", value=last_code)  # Vooraf ingevuld voor demo
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    back_button = st.form_submit_button("Terug", use_container_width=True)
+                with col2:
+                    submit_button = st.form_submit_button("Inloggen", use_container_width=True)
+            
+            if back_button:
+                st.session_state["code_sent"] = False
                 st.rerun()
-            else:
-                st.error("Ongeldige of verlopen inlogcode. Probeer het opnieuw.")
+                
+            if submit_button and code:
+                if verify_login_code(email, code):
+                    st.session_state["logged_in"] = True
+                    st.session_state["user_email"] = email
+                    st.rerun()
+                else:
+                    st.error("Ongeldige of verlopen code. Probeer het opnieuw.")
+            
+            # Voeg een optie toe om opnieuw een code te verzenden
+            if st.button("Nieuwe code versturen"):
+                if generate_login_code(email):
+                    st.success("Nieuwe verificatiecode verstuurd! Controleer uw inbox.")
+                else:
+                    st.error("Versturen van code mislukt. Probeer het opnieuw.")
         
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Admin login (klein in de hoek)
+    st.markdown("""
+    <style>
+    .admin-login {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    with st.container():
+        st.markdown("<div class='admin-login'>", unsafe_allow_html=True)
+        with st.expander("⚙️ Admin Login"):
+            with st.form("admin_login_form"):
+                admin_email = st.text_input("Admin E-mail", key="admin_email")
+                admin_code = st.text_input("Admin Code", key="admin_code")
+                admin_login = st.form_submit_button("Admin Inloggen")
+            
+            if admin_login and admin_email and admin_code:
+                if admin_email == "admin@example.com" and verify_login_code(admin_email, admin_code):
+                    st.session_state["logged_in"] = True
+                    st.session_state["user_email"] = admin_email
+                    st.rerun()
+                else:
+                    st.error("Ongeldige admin inloggegevens")
         st.markdown("</div>", unsafe_allow_html=True)
     
     # Footer
@@ -1042,11 +1177,13 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
         st.write(f"**Apparatuur:** {selected_job['apparatuur_omschrijving'] or 'Niet gespecificeerd'}")
         
         # Toon status met badge
-        status_text = selected_job["voortgang_status"]
+        status_id = selected_job["voortgang_status"]
+        status_beschrijving = status_mapping.get(status_id, f"Onbekend ({status_id})")
+        
         st.markdown(f"""
         <div>
             <strong>Huidige Status:</strong> 
-            <span class="status-badge status-in-progress">{status_text}</span>
+            <span class="status-badge status-in-progress">{status_id}: {status_beschrijving}</span>
         </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1129,7 +1266,7 @@ def main():
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
     if "last_sync" not in st.session_state:
-        st.session_state["last_sync"] = "Never"
+        st.session_state["last_sync"] = "Nooit"
     
     # Start data sync thread
     if "sync_started" not in st.session_state:
