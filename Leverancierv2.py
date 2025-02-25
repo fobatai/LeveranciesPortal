@@ -977,6 +977,10 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
         st.info("Geen jobs gevonden voor deze klant.")
         return
     
+    # Haal alle voortgangsstatus informatie op
+    voortgang_statussen = get_progress_statuses(domein, api_key)
+    status_mapping = {status["Id"]: status["Description"] for status in voortgang_statussen}
+    
     # Maak een dataframe voor alle jobs
     jobs_df = pd.DataFrame(jobs)
     
@@ -1000,6 +1004,13 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
         # Toon alle jobs maar markeer ze als niet verwerkbaar
         st.subheader("Uw toegewezen jobs:")
         display_df = jobs_df[["id", "omschrijving", "voortgang_status"]]
+        
+        # Voeg een kolom toe met de statusbeschrijving
+        display_df["Status Beschrijving"] = display_df["voortgang_status"].apply(
+            lambda status_id: status_mapping.get(status_id, f"Onbekend ({status_id})")
+        )
+        
+        display_df = display_df[["id", "omschrijving", "Status Beschrijving"]]
         display_df.columns = ["Job ID", "Omschrijving", "Huidige Status"]
         st.dataframe(display_df, use_container_width=True)
         
