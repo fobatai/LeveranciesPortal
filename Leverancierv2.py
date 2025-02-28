@@ -21,10 +21,6 @@ load_dotenv()
 import pandas as pd
 pd.options.mode.copy_on_write = True  # This will suppress the warning in newer pandas versions
 
-# Add pandas options to avoid SettingWithCopyWarning
-import pandas as pd
-pd.options.mode.copy_on_write = True  # This will suppress the warning in newer pandas versions
-
 # Stel pagina configuratie in
 st.set_page_config(
     page_title="Leveranciers Portal",
@@ -85,6 +81,30 @@ def init_db():
         gebruikt BOOLEAN NOT NULL DEFAULT 0
     )
     ''')
+    
+    # Maak email verificatie cache tabel
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS email_verification_cache (
+        email TEXT PRIMARY KEY,
+        verified BOOLEAN NOT NULL,
+        timestamp TEXT NOT NULL
+    )
+    ''')
+    
+    # Maak sync control tabel
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS sync_control (
+        id INTEGER PRIMARY KEY,
+        force_sync BOOLEAN NOT NULL DEFAULT 0,
+        last_sync TEXT,
+        sync_interval INTEGER NOT NULL DEFAULT 3600
+    )
+    ''')
+    
+    # Voeg standaard sync instellingen toe als ze nog niet bestaan
+    c.execute("SELECT COUNT(*) FROM sync_control")
+    if c.fetchone()[0] == 0:
+        c.execute("INSERT INTO sync_control (id, force_sync, last_sync, sync_interval) VALUES (1, 0, NULL, 3600)")
     
     conn.commit()
     conn.close()
@@ -152,7 +172,8 @@ def get_jobs(domein, api_key, filter_query=None, expand=None):
         return []
 
 def update_job_status(domein, api_key, job_id, voortgang_status, feedback_tekst):
-    url = f"https://{domein}/api/v1/object/Job({job_id})"
+    # Plaats de job_id tussen aanhalingstekens in de URL
+    url = f"https://{domein}/api/v1/object/Job('{job_id}')"
     
     headers = {
         "accept": "application/json",
@@ -160,17 +181,149 @@ def update_job_status(domein, api_key, job_id, voortgang_status, feedback_tekst)
         "ApiKey": api_key
     }
     
+    # Beperk de lengte van feedback_tekst om problemen te voorkomen
+    max_feedback_length = 2000  # Pas dit aan op basis van Ultimo API-limieten
+    if feedback_tekst and len(feedback_tekst) > max_feedback_length:
+        feedback_tekst = feedback_tekst[:max_feedback_length]
+    
+    # Basis data payload
     data = {
-        "ProgressStatus": voortgang_status,
-        "FeedbackText": feedback_tekst
+        "ProgressStatus": voortgang_status
     }
     
-    response = requests.patch(url, headers=headers, json=data)
-    if response.status_code == 204:  # No Content is success for PATCH
-        return True
-    else:
-        st.error(f"Fout bij het bijwerken van job: {response.status_code}")
+    # Voeg feedback alleen toe als deze niet leeg is
+    if feedback_tekst and feedback_tekst.strip():
+        data["FeedbackText"] = feedback_tekst
+    
+    try:
+        # Debug info loggen
+        print(f"API Request: PATCH {url}")
+        print(f"Headers: {headers}")
+        print(f"Data: {json.dumps(data)}")
+        
+        # Request verzenden
+        response = requests.patch(url, headers=headers, json=data)
+        
+        # Accepteer zowel 204 (No Content) als 200 (OK) als succesvolle response
+        if response.status_code == 204 or response.status_code == 200:
+            # Bij 200 kunnen we de bijgewerkte job-gegevens opslaan
+            if response.status_code == 200:
+                try:
+                    updated_job = response.json()
+                    print(f"Bijgewerkte job ontvangen: {updated_job.get('Id')}")
+                except:
+                    pass  # Stil doorgaan als we de JSON niet kunnen parsen
+            return True
+        else:
+            # Probeer gedetailleerde foutinformatie te verkrijgen
+            error_message = f"Fout bij het bijwerken van job: {response.status_code}"
+            try:
+                error_details = response.json()
+                error_message += f" - {json.dumps(error_details)}"
+            except:
+                error_message += f" - {response.text[:200]}"
+            
+            print(error_message)  # Log error for debugging
+            st.error(f"Fout bij het bijwerken van job: {response.status_code}")
+            
+            # Toon gedetailleerde foutinformatie in een expander voor troubleshooting
+            with st.expander("Technische foutdetails"):
+                st.code(error_message)
+                st.write("Controleer de volgende mogelijke oorzaken:")
+                st.write("1. De status-overgang is niet toegestaan in het Ultimo-systeem")
+                st.write("2. De voortgang_status waarde is ongeldig")
+                st.write("3. Er zijn speciale tekens in de feedback die niet worden geaccepteerd")
+                st.write("4. De API-sleutel heeft onvoldoende rechten om deze actie uit te voeren")
+            
+            return False
+    except Exception as e:
+        error_message = f"Exception bij het bijwerken van job: {str(e)}"
+        print(error_message)
+        st.error("Onverwachte fout bij het bijwerken van de job")
+        
+        with st.expander("Technische foutdetails"):
+            st.code(error_message)
+        
         return False
+
+def test_job_update(domein, api_key, job_id):
+    """Test een minimale job update om te zien of API-aanroep werkt"""
+    st.info("API-test wordt uitgevoerd...")
+    
+    # 1. Eerst de huidige job gegevens ophalen
+    try:
+        # Gebruik enkele quotes voor de job_id
+        get_url = f"https://{domein}/api/v1/object/Job('{job_id}')"
+        headers = {
+            "accept": "application/json",
+            "ApiKey": api_key
+        }
+        
+        response = requests.get(get_url, headers=headers)
+        
+        if response.status_code == 200:
+            job_data = response.json()
+            current_status = job_data.get("ProgressStatus", "")
+            st.success(f"Huidige status opgehaald: {current_status}")
+            
+            # 2. Probeer alleen de huidige status opnieuw te zetten (minimale verandering)
+            update_url = f"https://{domein}/api/v1/object/Job('{job_id}')"
+            update_headers = {
+                "accept": "application/json",
+                "Content-Type": "application/json",
+                "ApiKey": api_key
+            }
+            
+            # Het minimale verzoek dat mogelijk werkt
+            update_data = {
+                "ProgressStatus": current_status
+            }
+            
+            update_response = requests.patch(update_url, headers=update_headers, json=update_data)
+            
+            # Accepteer zowel 204 als 200 als succesvolle response
+            if update_response.status_code == 204 or update_response.status_code == 200:
+                st.success("Test succesvol: minimale update werkt!")
+                if update_response.status_code == 200:
+                    st.info("API retourneert 200 OK met bijgewerkte job data (dit is goed)")
+                elif update_response.status_code == 204:
+                    st.info("API retourneert 204 No Content (dit is ook goed)")
+                return True
+            else:
+                st.error(f"Test mislukt: minimale update geeft fout {update_response.status_code}")
+                try:
+                    error_details = update_response.json()
+                    st.code(json.dumps(error_details, indent=2))
+                except:
+                    st.code(update_response.text[:500])
+                return False
+        else:
+            st.error(f"Kon job details niet ophalen: {response.status_code}")
+            return False
+    except Exception as e:
+        st.error(f"Test fout: {str(e)}")
+        return False
+
+def check_valid_transitions(domein, api_key, job_id):
+    """Check welke statusovergangen geldig zijn voor deze job"""
+    # Gebruik enkele quotes voor de job_id
+    url = f"https://{domein}/api/v1/object/Job('{job_id}')"
+    headers = {
+        "accept": "application/json",
+        "ApiKey": api_key
+    }
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            job_data = response.json()
+            return job_data.get("ProgressStatus"), True
+        else:
+            st.error(f"Kon job status niet ophalen: {response.status_code}")
+            return None, False
+    except Exception as e:
+        st.error(f"Fout bij het ophalen van job status: {str(e)}")
+        return None, False
 
 def attach_image_to_job(domein, api_key, job_id, afbeelding_bestanden):
     url = f"https://{domein}/api/v1/action/REST_AttachImageToJob"
@@ -183,6 +336,8 @@ def attach_image_to_job(domein, api_key, job_id, afbeelding_bestanden):
     }
     
     # Verwerk maximaal 4 afbeeldingen
+    # Let op: hier wordt de JobId zonder quotes gebruikt omdat het om een action endpoint gaat,
+    # niet om een object endpoint. Controleer dit in de Ultimo API documentatie.
     data = {"JobId": job_id}
     
     for i, bestand in enumerate(afbeelding_bestanden[:4], 1):
@@ -199,17 +354,30 @@ def attach_image_to_job(domein, api_key, job_id, afbeelding_bestanden):
             else:
                 field_name = f"ImageFile{i}Base64"
                 data[field_name] = base64_str
+                ext_field_name = f"ImageFile{i}Base64Extension"
+                data[ext_field_name] = ext
     
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200:
-        return True, "Afbeeldingen succesvol geüpload"
-    else:
-        try:
-            error_info = response.json()
-            error_msg = error_info.get("message", str(response.status_code))
-        except:
-            error_msg = f"Fout {response.status_code}"
-        return False, f"Uploaden van afbeeldingen mislukt: {error_msg}"
+    try:
+        # Print debug info
+        print(f"Uploading images to job {job_id} via {url}")
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code == 200:
+            return True, "Afbeeldingen succesvol geüpload"
+        else:
+            try:
+                error_info = response.json()
+                error_msg = error_info.get("message", str(response.status_code))
+            except:
+                error_msg = f"Fout {response.status_code}: {response.text[:200]}"
+            
+            # Print debug info
+            print(f"Image upload error: {error_msg}")
+            return False, f"Uploaden van afbeeldingen mislukt: {error_msg}"
+    except Exception as e:
+        error_msg = f"Exception bij het uploaden van afbeeldingen: {str(e)}"
+        print(error_msg)
+        return False, error_msg
 
 # Email functies
 def send_login_code(email, code):
@@ -259,17 +427,9 @@ def generate_login_code(email):
                   (email, code, now))
         conn.commit()
         conn.close()
-    except:
-        try:
-            # Probeer de oude database als de nieuwe nog niet bestaat
-            conn = sqlite3.connect('supplier_portal.db')
-            c = conn.cursor()
-            c.execute("INSERT INTO login_codes (email, code, created_at) VALUES (?, ?, ?)",
-                      (email, code, now))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            st.error(f"Database fout: {str(e)}")
+    except Exception as e:
+        st.error(f"Database fout: {str(e)}")
+        return False
     
     # Voor testen: Toon code in de app in plaats van het verzenden van e-mail
     st.success(f"Inlogcode voor {email}: {code}")
@@ -302,30 +462,9 @@ def verify_login_code(email, code):
             conn.commit()
             conn.close()
             return True
-    except:
-        # Probeer de oude database als de nieuwe niet werkt
-        try:
-            conn = sqlite3.connect('supplier_portal.db')
-            c = conn.cursor()
-            
-            fifteen_min_ago = (datetime.datetime.now() - datetime.timedelta(minutes=15)).isoformat()
-            
-            c.execute("""
-            SELECT id FROM login_codes 
-            WHERE email = ? AND code = ? AND created_at > ? AND used = 0
-            ORDER BY created_at DESC LIMIT 1
-            """, (email, code, fifteen_min_ago))
-            
-            result = c.fetchone()
-            
-            if result:
-                # Markeer code als gebruikt
-                c.execute("UPDATE login_codes SET used = 1 WHERE id = ?", (result[0],))
-                conn.commit()
-                conn.close()
-                return True
-        except Exception as e:
-            print(f"Verificatie fout: {str(e)}")
+        conn.close()
+    except Exception as e:
+        print(f"Verificatie fout: {str(e)}")
             
     return False
 
@@ -335,25 +474,46 @@ def check_email_exists(email):
         return True
         
     try:
-        # Poging 1: Gebruik leveranciers_portal.db
+        # First check local cache to avoid API calls
         conn = sqlite3.connect('leveranciers_portal.db')
         c = conn.cursor()
         
-        # Controleer of de e-mail bestaat in jobgegevens
+        # Check if we've already verified this email in the past 24 hours
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS email_verification_cache (
+            email TEXT PRIMARY KEY,
+            verified BOOLEAN NOT NULL,
+            timestamp TEXT NOT NULL
+        )
+        """)
+        
+        # Check if email is in our verification cache and was verified in the last 24 hours
+        one_day_ago = (datetime.datetime.now() - datetime.timedelta(days=1)).isoformat()
+        c.execute("""
+        SELECT verified FROM email_verification_cache
+        WHERE email = ? AND timestamp > ?
+        """, (email, one_day_ago))
+        
+        result = c.fetchone()
+        if result is not None:
+            conn.close()
+            return result[0]  # Return cached verification result
+        
+        # If not in cache, search the jobs cache database
         c.execute("""
         SELECT COUNT(*) FROM jobs_cache
         WHERE json_extract(data, '$.Vendor.ObjectContacts') IS NOT NULL
         """)
         
-        # Verwerk elke job om te controleren op de e-mail
+        # Process each job to check for the email
         c.execute("""
         SELECT data FROM jobs_cache
         WHERE json_extract(data, '$.Vendor.ObjectContacts') IS NOT NULL
         """)
         
         jobs = c.fetchall()
-        conn.close()
         
+        email_found = False
         for job in jobs:
             data = json.loads(job[0])
             if 'Vendor' in data and data['Vendor'] is not None and 'ObjectContacts' in data['Vendor']:
@@ -361,14 +521,28 @@ def check_email_exists(email):
                     if 'Employee' in contact and contact['Employee'] is not None:
                         employee = contact['Employee']
                         if 'EmailAddress' in employee and employee['EmailAddress'] == email:
-                            return True
-    except:
-        # Poging 2: Gebruik supplier_portal.db (oude database)
+                            email_found = True
+                            break
+                if email_found:
+                    break
+        
+        # Cache the result of our verification
+        now = datetime.datetime.now().isoformat()
+        c.execute("""
+        INSERT OR REPLACE INTO email_verification_cache (email, verified, timestamp)
+        VALUES (?, ?, ?)
+        """, (email, email_found, now))
+        conn.commit()
+        conn.close()
+        
+        return email_found
+    except Exception as e:
+        print(f"Error checking email: {str(e)}")
+        # Fallback to old search method if needed
         try:
-            conn = sqlite3.connect('supplier_portal.db')
+            conn = sqlite3.connect('leveranciers_portal.db')
             c = conn.cursor()
             
-            # Controleer of de e-mail bestaat in jobgegevens
             c.execute("""
             SELECT COUNT(*) FROM jobs_cache
             WHERE data LIKE ?
@@ -384,132 +558,189 @@ def check_email_exists(email):
     
     return False
 
+# Force sync function 
+def force_sync():
+    """Forces a data sync to happen immediately"""
+    try:
+        conn = sqlite3.connect('leveranciers_portal.db')
+        c = conn.cursor()
+        
+        # Set force sync flag
+        c.execute("UPDATE sync_control SET force_sync = 1 WHERE id = 1")
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error triggering force sync: {str(e)}")
+        return False
+
 # Data synchronisatie functie (om in een aparte thread uit te voeren)
 def sync_jobs():
+    last_sync_time = None
+    
     while True:
         try:
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            now = datetime.datetime.now()
+            now_str = now.strftime("%Y-%m-%d %H:%M:%S")
             
             # Verbinding maken met database
             conn = sqlite3.connect('leveranciers_portal.db')
             c = conn.cursor()
             
-            # Update laatste synchronisatietijd in database
-            c.execute('''
-            CREATE TABLE IF NOT EXISTS laatste_sync (
-                id INTEGER PRIMARY KEY,
-                tijdstempel TEXT NOT NULL
-            )
-            ''')
-            c.execute("INSERT OR REPLACE INTO laatste_sync (id, tijdstempel) VALUES (1, ?)", (now,))
-            conn.commit()
+            # Check if a force sync has been requested
+            c.execute("SELECT force_sync, last_sync, sync_interval FROM sync_control WHERE id = 1")
+            result = c.fetchone()
             
-            # Haal alle klanten op
-            c.execute("SELECT id, naam, domein, api_key FROM klanten")
-            klanten = c.fetchall()
+            if result:
+                force_sync_flag, db_last_sync, sync_interval = result
+            else:
+                # Default values
+                force_sync_flag = False
+                db_last_sync = None
+                sync_interval = 3600  # Default to hourly
+                c.execute("INSERT INTO sync_control (id, force_sync, last_sync, sync_interval) VALUES (1, 0, NULL, 3600)")
+                conn.commit()
             
-            for klant in klanten:
-                klant_id, klant_naam, domein, api_key = klant
-                
-                # Haal de laatste RecordChangeDate op uit onze cache
-                c.execute("""
-                SELECT MAX(wijzigingsdatum) FROM jobs_cache
-                WHERE klant_id = ?
-                """, (klant_id,))
-                
-                laatste_wijzigingsdatum = c.fetchone()[0]
-                
-                # Bereid zo nodig filter-query voor
-                filter_query = None
-                if laatste_wijzigingsdatum:
-                    # Formatteer datum als ISO-formaat voor API-compatibiliteit
-                    try:
-                        # Probeer de datum te parsen en opnieuw te formatteren
-                        parsed_date = datetime.datetime.fromisoformat(laatste_wijzigingsdatum.replace('Z', '+00:00'))
-                        formatted_date = parsed_date.strftime('%Y-%m-%dT%H:%M:%SZ')
-                        filter_query = f"RecordChangeDate gt {formatted_date}"
-                    except Exception as e:
-                        print(f"Fout bij het parsen van de datum: {str(e)}. Ruwe datum wordt gebruikt.")
-                        filter_query = f"RecordChangeDate gt {laatste_wijzigingsdatum}"
-                
-                # Gebruik try-except om API-fouten af te handelen
+            # Determine if we should sync now
+            should_sync = False
+            
+            if force_sync_flag:
+                # Reset force sync flag
+                should_sync = True
+                c.execute("UPDATE sync_control SET force_sync = 0 WHERE id = 1")
+                conn.commit()
+                print("Forced sync triggered")
+            elif db_last_sync is None:
+                # No previous sync, do it now
+                should_sync = True
+                print("Initial sync")
+            else:
+                # Check if enough time has passed since last sync
                 try:
-                    # Vraag jobs op met uitgebreide info
-                    url = f"https://{domein}/api/v1/object/Job"
-                    params = {}
-                    if filter_query:
-                        params["filter"] = filter_query
-                    params["expand"] = "Vendor/ObjectContacts/Employee,Equipment,ProcessFunction"
-                    
-                    headers = {
-                        "accept": "application/json",
-                        "ApiKey": api_key
-                    }
-                    
-                    print(f"API-verzoek naar {url} met parameters: {params}")
-                    response = requests.get(url, headers=headers, params=params, timeout=10)
-                    if response.status_code != 200:
-                        error_message = f"API-fout voor klant {klant_id}: {response.status_code}"
-                        try:
-                            error_data = response.json()
-                            error_message += f" - {error_data.get('message', '')}"
-                        except:
-                            error_message += f" - {response.text[:100]}"
-                        print(error_message)
-                        continue
-                        
-                    jobs = response.json().get("items", [])
-                    
-                    # Verwerk de jobs
-                    for job in jobs:
-                        # Haal relevante informatie op
-                        job_id = job.get("Id", "")
-                        omschrijving = job.get("Description", "")
-                        voortgang_status = job.get("ProgressStatus", "")
-                        wijzigingsdatum = job.get("RecordChangeDate")
-                        
-                        # Als wijzigingsdatum None of leeg is, gebruik dan de huidige tijd
-                        if not wijzigingsdatum:
-                            wijzigingsdatum = now
-                        
-                        # Haal leveranciersinformatie op indien beschikbaar
-                        leverancier_id = ""
-                        if "Vendor" in job and isinstance(job["Vendor"], dict):
-                            leverancier_id = job["Vendor"].get("Id", "")
-                        
-                        # Haal apparatuur-omschrijving op indien beschikbaar
-                        apparatuur_omschrijving = ""
-                        if "Equipment" in job and isinstance(job["Equipment"], dict):
-                            apparatuur_omschrijving = job["Equipment"].get("Description", "")
-                        
-                        # Haal processfunctie-omschrijving op indien beschikbaar
-                        processfunctie_omschrijving = ""
-                        if "ProcessFunction" in job and isinstance(job["ProcessFunction"], dict):
-                            processfunctie_omschrijving = job["ProcessFunction"].get("Description", "")
-                        
-                        # Sla de job op of update deze in onze cache
-                        c.execute("""
-                        INSERT OR REPLACE INTO jobs_cache 
-                        (id, klant_id, omschrijving, apparatuur_omschrijving, 
-                        processfunctie_omschrijving, voortgang_status, leverancier_id, 
-                        wijzigingsdatum, data)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            job_id, klant_id, omschrijving, apparatuur_omschrijving,
-                            processfunctie_omschrijving, voortgang_status, leverancier_id,
-                            wijzigingsdatum, json.dumps(job)
-                        ))
-                
+                    last_sync_time = datetime.datetime.fromisoformat(db_last_sync)
+                    time_since_last_sync = (now - last_sync_time).total_seconds()
+                    should_sync = time_since_last_sync >= sync_interval
+                    if should_sync:
+                        print(f"Regular sync triggered after {time_since_last_sync} seconds")
                 except Exception as e:
-                    print(f"Fout bij het verwerken van jobs voor klant {klant_id}: {str(e)}")
+                    print(f"Error parsing last sync time: {str(e)}")
+                    should_sync = True
             
-            conn.commit()
+            if should_sync:
+                # Update last synchronization time in database
+                c.execute("UPDATE sync_control SET last_sync = ? WHERE id = 1", (now_str,))
+                conn.commit()
+                
+                # Haal alle klanten op
+                c.execute("SELECT id, naam, domein, api_key FROM klanten")
+                klanten = c.fetchall()
+                
+                for klant in klanten:
+                    klant_id, klant_naam, domein, api_key = klant
+                    
+                    # Haal de laatste RecordChangeDate op uit onze cache
+                    c.execute("""
+                    SELECT MAX(wijzigingsdatum) FROM jobs_cache
+                    WHERE klant_id = ?
+                    """, (klant_id,))
+                    
+                    laatste_wijzigingsdatum = c.fetchone()[0]
+                    
+                    # Bereid zo nodig filter-query voor
+                    filter_query = None
+                    if laatste_wijzigingsdatum:
+                        # Formatteer datum als ISO-formaat voor API-compatibiliteit
+                        try:
+                            # Probeer de datum te parsen en opnieuw te formatteren
+                            parsed_date = datetime.datetime.fromisoformat(laatste_wijzigingsdatum.replace('Z', '+00:00'))
+                            formatted_date = parsed_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+                            filter_query = f"RecordChangeDate gt {formatted_date}"
+                        except Exception as e:
+                            print(f"Fout bij het parsen van de datum: {str(e)}. Ruwe datum wordt gebruikt.")
+                            filter_query = f"RecordChangeDate gt {laatste_wijzigingsdatum}"
+                    
+                    # Gebruik try-except om API-fouten af te handelen
+                    try:
+                        # Vraag jobs op met uitgebreide info
+                        url = f"https://{domein}/api/v1/object/Job"
+                        params = {}
+                        if filter_query:
+                            params["filter"] = filter_query
+                        params["expand"] = "Vendor/ObjectContacts/Employee,Equipment,ProcessFunction"
+                        
+                        headers = {
+                            "accept": "application/json",
+                            "ApiKey": api_key
+                        }
+                        
+                        print(f"API-verzoek naar {url} met parameters: {params}")
+                        response = requests.get(url, headers=headers, params=params, timeout=10)
+                        if response.status_code != 200:
+                            error_message = f"API-fout voor klant {klant_id}: {response.status_code}"
+                            try:
+                                error_data = response.json()
+                                error_message += f" - {error_data.get('message', '')}"
+                            except:
+                                error_message += f" - {response.text[:100]}"
+                            print(error_message)
+                            continue
+                            
+                        jobs = response.json().get("items", [])
+                        
+                        # Verwerk de jobs
+                        for job in jobs:
+                            # Haal relevante informatie op
+                            job_id = job.get("Id", "")
+                            omschrijving = job.get("Description", "")
+                            voortgang_status = job.get("ProgressStatus", "")
+                            wijzigingsdatum = job.get("RecordChangeDate")
+                            
+                            # Als wijzigingsdatum None of leeg is, gebruik dan de huidige tijd
+                            if not wijzigingsdatum:
+                                wijzigingsdatum = now_str
+                            
+                            # Haal leveranciersinformatie op indien beschikbaar
+                            leverancier_id = ""
+                            if "Vendor" in job and isinstance(job["Vendor"], dict):
+                                leverancier_id = job["Vendor"].get("Id", "")
+                            
+                            # Haal apparatuur-omschrijving op indien beschikbaar
+                            apparatuur_omschrijving = ""
+                            if "Equipment" in job and isinstance(job["Equipment"], dict):
+                                apparatuur_omschrijving = job["Equipment"].get("Description", "")
+                            
+                            # Haal processfunctie-omschrijving op indien beschikbaar
+                            processfunctie_omschrijving = ""
+                            if "ProcessFunction" in job and isinstance(job["ProcessFunction"], dict):
+                                processfunctie_omschrijving = job["ProcessFunction"].get("Description", "")
+                            
+                            # Sla de job op of update deze in onze cache
+                            c.execute("""
+                            INSERT OR REPLACE INTO jobs_cache 
+                            (id, klant_id, omschrijving, apparatuur_omschrijving, 
+                            processfunctie_omschrijving, voortgang_status, leverancier_id, 
+                            wijzigingsdatum, data)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (
+                                job_id, klant_id, omschrijving, apparatuur_omschrijving,
+                                processfunctie_omschrijving, voortgang_status, leverancier_id,
+                                wijzigingsdatum, json.dumps(job)
+                            ))
+                    
+                    except Exception as e:
+                        print(f"Fout bij het verwerken van jobs voor klant {klant_id}: {str(e)}")
+                
+                conn.commit()
+                print(f"Sync completed at {now_str}")
+            
             conn.close()
         
         except Exception as e:
             print(f"Sync thread fout: {str(e)}")
         
-        # Slaap 1 minuut voor de volgende synchronisatie
+        # Slaap 60 seconden voor de volgende check
+        # We check every minute if a force sync has been requested,
+        # but only perform regular syncs based on the sync_interval
         time.sleep(60)
 
 # Start de sync thread
@@ -633,12 +864,81 @@ def login_page():
     # Footer
     st.markdown("<div class='footer'>© 2025 Leveranciers Portal - Een product van Pontifexx</div>", unsafe_allow_html=True)
 
+# Show sync info in sidebar
+def sidebar_sync_info():
+    # Get sync information
+    conn = sqlite3.connect('leveranciers_portal.db')
+    c = conn.cursor()
+    
+    # Get sync info
+    c.execute("SELECT last_sync, sync_interval FROM sync_control WHERE id = 1")
+    result = c.fetchone()
+    
+    if result:
+        last_sync, sync_interval = result
+    else:
+        last_sync = None
+        sync_interval = 3600
+    
+    conn.close()
+    
+    st.write("### Synchronisatie Status")
+    
+    # Format interval for display
+    if sync_interval == 3600:
+        interval_str = "Elk uur"
+    elif sync_interval < 3600:
+        minutes = sync_interval // 60
+        interval_str = f"Elke {minutes} {'minuut' if minutes == 1 else 'minuten'}"
+    else:
+        hours = sync_interval // 3600
+        interval_str = f"Elke {hours} {'uur' if hours == 1 else 'uren'}"
+    
+    st.write(f"**Interval:** {interval_str}")
+    
+    if last_sync:
+        try:
+            last_sync_dt = datetime.datetime.fromisoformat(last_sync)
+            formatted_time = last_sync_dt.strftime("%d-%m-%Y %H:%M")
+            
+            # Calculate time until next sync
+            next_sync = last_sync_dt + datetime.timedelta(seconds=sync_interval)
+            time_to_next = next_sync - datetime.datetime.now()
+            
+            if time_to_next.total_seconds() <= 0:
+                next_sync_str = "Binnenkort"
+            elif time_to_next.total_seconds() < 60:
+                next_sync_str = "Binnen een minuut"
+            elif time_to_next.total_seconds() < 3600:
+                minutes = int(time_to_next.total_seconds() / 60)
+                next_sync_str = f"Over {minutes} {'minuut' if minutes == 1 else 'minuten'}"
+            else:
+                hours = int(time_to_next.total_seconds() / 3600)
+                minutes = int((time_to_next.total_seconds() % 3600) / 60)
+                next_sync_str = f"Over {hours}{'u' if hours else ''}{minutes if minutes else ''}{'m' if minutes else ''}"
+            
+            st.write(f"**Laatste sync:** {formatted_time}")
+            st.write(f"**Volgende sync:** {next_sync_str}")
+        except:
+            st.write(f"**Laatste sync:** {last_sync}")
+    else:
+        st.write("**Laatste sync:** Nooit")
+    
+    # Add a force sync button
+    if st.button("Forceer Sync Nu", key="sidebar_force_sync"):
+        if force_sync():
+            st.success("Synchronisatie gestart...")
+            time.sleep(1)  # Brief delay
+            st.rerun()
+        else:
+            st.error("Fout bij starten synchronisatie")
+
 # Admin pagina's
 def admin_page():
     st.markdown("<h1>📊 Beheerders Dashboard</h1>", unsafe_allow_html=True)
     st.markdown("Beheer klanten, statustoewijzingen en leverancierstoegang")
     
-    tabs = st.tabs(["🏢 Klanten", "🔄 Status Toewijzingen", "👥 Leveranciers Toegang"])
+    tabs = st.tabs(["🏢 Klanten", "🔄 Status Toewijzingen", "👥 Leveranciers Toegang", "⚙️ Sync Instellingen"])
     
     with tabs[0]:
         manage_customers()
@@ -648,6 +948,136 @@ def admin_page():
         
     with tabs[2]:
         manage_supplier_access()
+        
+    with tabs[3]:
+        manage_sync_settings()
+
+def manage_sync_settings():
+    st.markdown("<h2>⚙️ Sync Instellingen</h2>", unsafe_allow_html=True)
+    
+    # Get current sync settings
+    conn = sqlite3.connect('leveranciers_portal.db')
+    c = conn.cursor()
+    
+    # Get current settings or insert defaults
+    c.execute("SELECT last_sync, sync_interval FROM sync_control WHERE id = 1")
+    result = c.fetchone()
+    
+    if result:
+        last_sync, sync_interval = result
+    else:
+        last_sync = "Nooit"
+        sync_interval = 3600  # Default to hourly
+        c.execute("INSERT INTO sync_control (id, force_sync, last_sync, sync_interval) VALUES (1, 0, NULL, 3600)")
+        conn.commit()
+    
+    conn.close()
+    
+    # Display current settings
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+        st.subheader("Huidige Instellingen")
+        
+        # Format last sync time nicely if it exists
+        if last_sync and last_sync != "Nooit":
+            try:
+                last_sync_dt = datetime.datetime.fromisoformat(last_sync)
+                formatted_time = last_sync_dt.strftime("%d-%m-%Y %H:%M:%S")
+                time_ago = datetime.datetime.now() - last_sync_dt
+                
+                if time_ago.total_seconds() < 60:
+                    time_ago_str = "zojuist"
+                elif time_ago.total_seconds() < 3600:
+                    minutes = int(time_ago.total_seconds() / 60)
+                    time_ago_str = f"{minutes} {'minuut' if minutes == 1 else 'minuten'} geleden"
+                elif time_ago.total_seconds() < 86400:
+                    hours = int(time_ago.total_seconds() / 3600)
+                    time_ago_str = f"{hours} {'uur' if hours == 1 else 'uren'} geleden"
+                else:
+                    days = int(time_ago.total_seconds() / 86400)
+                    time_ago_str = f"{days} {'dag' if days == 1 else 'dagen'} geleden"
+                
+                st.info(f"Laatste synchronisatie: {formatted_time} ({time_ago_str})")
+            except:
+                st.info(f"Laatste synchronisatie: {last_sync}")
+        else:
+            st.info("Laatste synchronisatie: Nooit")
+        
+        # Show current interval
+        if sync_interval == 3600:
+            st.write("Huidige interval: Elk uur")
+        elif sync_interval < 3600:
+            minutes = sync_interval // 60
+            st.write(f"Huidige interval: Elke {minutes} {'minuut' if minutes == 1 else 'minuten'}")
+        else:
+            hours = sync_interval // 3600
+            st.write(f"Huidige interval: Elke {hours} {'uur' if hours == 1 else 'uren'}")
+        
+        # Option to force sync
+        if st.button("Forceer Synchronisatie Nu", use_container_width=True):
+            if force_sync():
+                st.success("Synchronisatie gestart...")
+                time.sleep(2)  # Allow time for sync to start
+                st.rerun()
+            else:
+                st.error("Fout bij het starten van de synchronisatie")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+        st.subheader("Synchronisatie Interval Instellen")
+        
+        with st.form("sync_interval_form"):
+            interval_options = {
+                900: "15 minuten",
+                1800: "30 minuten",
+                3600: "1 uur",
+                7200: "2 uur",
+                14400: "4 uur",
+                28800: "8 uur",
+                43200: "12 uur",
+                86400: "24 uur"
+            }
+            
+            selected_interval = st.selectbox(
+                "Kies interval", 
+                list(interval_options.keys()),
+                format_func=lambda x: interval_options[x],
+                index=list(interval_options.keys()).index(sync_interval) if sync_interval in interval_options else 2
+            )
+            
+            submit_button = st.form_submit_button("Interval Bijwerken", use_container_width=True)
+        
+        if submit_button:
+            conn = sqlite3.connect('leveranciers_portal.db')
+            c = conn.cursor()
+            c.execute("UPDATE sync_control SET sync_interval = ? WHERE id = 1", (selected_interval,))
+            conn.commit()
+            conn.close()
+            st.success(f"Synchronisatie interval bijgewerkt naar {interval_options[selected_interval]}")
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Add explanation of API usage
+    st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+    st.subheader("Over API Gebruik")
+    st.write("""
+    De synchronisatie haalt gegevens op van de Ultimo API volgens het ingestelde interval. 
+    Een hogere frequentie houdt de gegevens actueler, maar kan leiden tot meer API-verzoeken.
+
+    **Wanneer gebeurt synchronisatie?**
+    - Volgens het ingestelde interval (standaard elk uur)
+    - Wanneer u handmatig synchronisatie forceert
+    - Bij de eerste keer opstarten van de applicatie
+
+    **Optimalisatie van API-aanroepen:**
+    - Er worden alleen gewijzigde records opgehaald sinds de laatste synchronisatie
+    - E-mailverificatie bij inloggen gebruikt lokale cache om API-aanroepen te minimaliseren
+    - API-aanroepen worden alleen gedaan wanneer nodig
+    """)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 def manage_customers():
     st.markdown("<h2>🏢 Klanten Beheren</h2>", unsafe_allow_html=True)
@@ -1192,8 +1622,36 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
     st.markdown("<div class='stCard'>", unsafe_allow_html=True)
     st.subheader("✅ Job Afronden")
     
+    # Voeg een test-knop toe voor API-debugging
+    if st.button("Test API-verbinding voor deze job", key="test_api_btn"):
+        test_result = test_job_update(domein, api_key, selected_job_id)
+        if test_result:
+            st.success("API-test succesvol! Je kunt nu veilig doorgaan met het afronden van de job.")
+        else:
+            st.warning("De API-test heeft problemen gedetecteerd. Controleer de instellingen of neem contact op met de beheerder.")
+    
+    # Controleer geldige statusovergangen
+    if st.button("Controleer geldige statusovergangen", key="check_transitions"):
+        current_status, success = check_valid_transitions(domein, api_key, selected_job_id)
+        if success and current_status:
+            if current_status in mappings:
+                target_status = mappings[current_status]
+                st.success(f"Geldige overgang gevonden: Van '{current_status}' naar '{target_status}'")
+            else:
+                st.warning(f"Geen toewijzing gevonden voor huidige status '{current_status}'")
+        else:
+            st.error("Kon statusovergangen niet controleren")
+    
     with st.form("complete_job_form"):
-        feedback = st.text_area("Feedback Tekst", height=150)
+        feedback = st.text_area("Feedback Tekst", height=150, 
+                            help="Vul hier uw feedback in. Max 2000 tekens aanbevolen.")
+        
+        # Toon maximum aantal tekens
+        if feedback:
+            st.caption(f"Aantal tekens: {len(feedback)}/2000")
+        
+        # Voeg een optie toe om FeedbackText veld over te slaan als dat problemen veroorzaakt
+        skip_feedback = st.checkbox("Alleen status bijwerken (geen feedback tekst)")
         
         # Voeg afbeelding-uploadvelden toe
         st.write("Upload Afbeeldingen (Optioneel)")
@@ -1217,8 +1675,11 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
         
         # Update jobstatus via API
         with st.spinner("Job aan het bijwerken..."):
-            if update_job_status(domein, api_key, selected_job_id, target_status, feedback):
-                st.success(f"Job {selected_job_id} succesvol bijgewerkt.")
+            # Controleer of we feedback moeten meesturen
+            feedback_to_send = None if skip_feedback else feedback
+            
+            if update_job_status(domein, api_key, selected_job_id, target_status, feedback_to_send):
+                st.success(f"Job {selected_job_id} succesvol bijgewerkt naar status: {target_status}")
                 
                 # Upload afbeeldingen indien aangeleverd
                 images = [image1, image2, image3, image4]
@@ -1236,7 +1697,10 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
                 
                 job_data = jobs_data[selected_job_id]
                 job_data["ProgressStatus"] = target_status
-                job_data["FeedbackText"] = feedback
+                
+                # Alleen feedback updaten in cache als we het ook hebben verzonden
+                if feedback_to_send:
+                    job_data["FeedbackText"] = feedback_to_send
                 
                 c.execute("""
                 UPDATE jobs_cache
@@ -1255,6 +1719,7 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
                 st.rerun()
             else:
                 st.error("Bijwerken van job mislukt. Probeer het opnieuw.")
+                st.info("Tip: Probeer de 'Test API-verbinding' knop te gebruiken om te zien of een eenvoudiger verzoek werkt.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Main application
@@ -1265,10 +1730,8 @@ def main():
     # Initialize session state variables
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
-    if "last_sync" not in st.session_state:
-        st.session_state["last_sync"] = "Nooit"
     
-    # Start data sync thread
+    # Start data sync thread if not already started
     if "sync_started" not in st.session_state:
         start_sync_thread()
         st.session_state["sync_started"] = True
@@ -1280,35 +1743,10 @@ def main():
     # Show sync status in sidebar if logged in
     if st.session_state.get("logged_in", False):
         with st.sidebar:
-            # Get last sync time from database
-            conn = sqlite3.connect('supplier_portal.db')
-            c = conn.cursor()
-            
-            # Create table if it doesn't exist
-            c.execute('''
-            CREATE TABLE IF NOT EXISTS last_sync (
-                id INTEGER PRIMARY KEY,
-                timestamp TEXT NOT NULL
-            )
-            ''')
-            
-            c.execute("SELECT timestamp FROM last_sync WHERE id = 1")
-            result = c.fetchone()
-            last_sync = result[0] if result else "Never"
-            conn.close()
-            
-            st.write(f"Last sync: {last_sync}")
-            if st.button("Force Sync Now"):
-                # We'll manually run a sync on next page load
-                conn = sqlite3.connect('supplier_portal.db')
-                c = conn.cursor()
-                c.execute("DELETE FROM last_sync")
-                conn.commit()
-                conn.close()
-                st.rerun()
+            sidebar_sync_info()
             
             # Navigation buttons
-            st.write("### Navigation")
+            st.write("### Navigatie")
             
             if st.session_state.get("user_email") == "admin@example.com":
                 col1, col2, col3 = st.columns(3)
@@ -1317,22 +1755,22 @@ def main():
                         st.session_state["current_page"] = "admin"
                         st.rerun()
                 with col2:
-                    if st.button("Supplier", use_container_width=True):
+                    if st.button("Leverancier", use_container_width=True):
                         st.session_state["current_page"] = "supplier"
                         st.rerun()
                 with col3:
-                    if st.button("Logout", use_container_width=True):
+                    if st.button("Uitloggen", use_container_width=True):
                         st.session_state["logged_in"] = False
                         st.session_state.pop("user_email", None)
                         st.rerun()
             else:
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("Supplier", use_container_width=True):
+                    if st.button("Dashboard", use_container_width=True):
                         st.session_state["current_page"] = "supplier"
                         st.rerun()
                 with col2:
-                    if st.button("Logout", use_container_width=True):
+                    if st.button("Uitloggen", use_container_width=True):
                         st.session_state["logged_in"] = False
                         st.session_state.pop("user_email", None)
                         st.rerun()
