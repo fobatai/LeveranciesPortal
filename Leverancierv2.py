@@ -836,7 +836,7 @@ def start_sync_thread():
 # Authenticatie
 def login_page():
     # Centering the entire login page content
-    st.markdown("<div style='display: flex; justify-content: center; align-items: center; min-height: 80vh;'>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex; justify-content: center; align-items: center;'>", unsafe_allow_html=True)
     
     main_col_width = [0.5, 2, 0.5] # Adjust ratios for wider/narrower central column
     
@@ -1474,7 +1474,6 @@ def manage_supplier_access():
 # Leverancier pagina's
 def supplier_page():
     st.markdown("<h1>🔧 Leveranciers Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown(f"Welkom terug, {st.session_state.get('user_email', 'Leverancier')}! Hier kunt u uw toegewezen werkorders bekijken en beheren.")
     
     # Haal e-mail van de ingelogde gebruiker op
     email = st.session_state.get("user_email")
@@ -1513,9 +1512,10 @@ def supplier_page():
                             break # Gevonden, ga naar volgende job
         
         if not user_jobs:
-            st.markdown("<div class='stCard'>", unsafe_allow_html=True)
-            st.info("U heeft momenteel geen werkorders toegewezen die aan uw e-mailadres zijn gekoppeld.")
-            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div class='stCard'>", unsafe_allow_html=True) # CARD START
+            st.markdown(f"Welkom terug, {st.session_state.get('user_email', 'Leverancier')}! Hier kunt u uw toegewezen werkorders bekijken en beheren.") # WELCOME MESSAGE
+            st.info("U heeft momenteel geen werkorders toegewezen die aan uw e-mailadres zijn gekoppeld.") # "NO WORK ORDERS" MESSAGE
+            st.markdown("</div>", unsafe_allow_html=True) # CARD END
             return
         
         # Technische info expander (optioneel, kan worden verwijderd voor productie)
@@ -1564,8 +1564,9 @@ def supplier_page():
                 customer_status_mappings[klant_id_map][van_status] = naar_status
         
         # Hoofdkaart voor het dashboard van de leverancier
-        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
-        
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True) # MAIN CARD START
+        st.markdown(f"Welkom terug, {st.session_state.get('user_email', 'Leverancier')}! Hier kunt u uw toegewezen werkorders bekijken en beheren.") # WELCOME MESSAGE
+
         # Statistieken bovenaan
         total_user_jobs = len(user_jobs)
         processable_job_count = 0
