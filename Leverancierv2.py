@@ -836,7 +836,7 @@ def start_sync_thread():
 # Authenticatie
 def login_page():
     # Centering the entire login page content
-    st.markdown("<div style='display: flex; justify-content: center; align-items: center; min-height: 80vh;'>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex; justify-content: center; align-items: center;'>", unsafe_allow_html=True)
     
     main_col_width = [0.5, 2, 0.5] # Adjust ratios for wider/narrower central column
     
