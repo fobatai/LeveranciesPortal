@@ -18,7 +18,7 @@ model Klant {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   statusToewijzingen  StatusToewijzing[]
-  jobsCache           JobsCache[]
+  jobs                Job[] // Corrected from JobsCache[] to Job[]
 }
 
 model StatusToewijzing {
@@ -33,21 +33,53 @@ model StatusToewijzing {
   @@index([klant_id])
 }
 
-model JobsCache {
-  id                        String    @id // Job ID from ERP
-  klant_id                  Int
-  omschrijving              String
+// Renamed from JobsCache
+model Job {
+  id                 String   @id // Job ID from Ultimo 'Id'
+  description        String   // Ultimo 'Description'
+  recordChangeDate   DateTime // Ultimo 'RecordChangeDate'
+  
+  statusId           String?   // Foreign key for UltimoProgressStatus
+  progressStatus     UltimoProgressStatus? @relation(fields: [statusId], references: [id])
+
+  vendorId           String?   // Foreign key for UltimoVendor
+  vendor             UltimoVendor?  @relation(fields: [vendorId], references: [id])
+  
+  // Retain these fields from original JobsCache, making klant_id optional
+  klant_id                  Int? 
+  klant                     Klant? @relation(fields: [klant_id], references: [id], onDelete: Cascade)
   apparatuur_omschrijving   String?
   processfunctie_omschrijving String?
-  voortgang_status          String
-  leverancier_id            String?   // ID of the vendor in the ERP
-  wijzigingsdatum           DateTime  // RecordChangeDate from ERP
-  data                      Json      // Raw job JSON from ERP
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-  klant                     Klant     @relation(fields: [klant_id], references: [id], onDelete: Cascade)
+  // data                      Json // Commented out data field
 
-  @@index([klant_id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([statusId])
+  @@index([vendorId])
+  @@index([klant_id], map: "idx_job_klant_id")
+}
+
+model UltimoProgressStatus {
+  id          String @id // Ultimo 'Id' (e.g., "060")
+  description String // Ultimo 'Description' (e.g., "Open")
+  jobs        Job[]
+}
+
+model UltimoVendor {
+  id           String    @id // Ultimo 'Id' (e.g., "2010")
+  description  String?   // Ultimo 'Description' (e.g., "Carrier corp.")
+  emailAddress String?   // Ultimo 'EmailAddress'
+  jobs         Job[]
+  employees    UltimoEmployee[]
+}
+
+model UltimoEmployee {
+  id           String  @id     // Ultimo 'Id' (e.g., "000005")
+  description  String? // Ultimo 'Description' (e.g., "Petrauskas, F.")
+  emailAddress String  @unique // Ultimo 'EmailAddress', must be unique for login
+  vendorId     String
+  vendor       UltimoVendor @relation(fields: [vendorId], references: [id])
 }
 
 model Inlogcode {

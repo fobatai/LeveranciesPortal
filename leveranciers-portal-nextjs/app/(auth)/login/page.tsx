@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // Import useRouter
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,27 +11,29 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function SupplierLoginPage() {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [password, setPassword] = useState(""); // Add password state
+  // const [message, setMessage] = useState<string | null>(null); // Remove message state
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter(); // Initialize useRouter
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setMessage(null);
+    // setMessage(null); // Remove message logic
     setError(null);
     setIsLoading(true);
 
     try {
-      const result = await signIn("email", {
+      const result = await signIn("supplier-credentials", { // Use "supplier-credentials"
         email,
-        redirect: false, // Important: handle success/error messages on this page
-        // callbackUrl: '/dashboard', // Optional: NextAuth will handle redirect after link click
+        password, // Add password
+        redirect: false, 
       });
 
       if (result?.error) {
-        setError(result.error === "EmailSignIn" ? "Could not send login email. Please try again." : result.error);
+        setError(result.error === "CredentialsSignin" ? "Invalid email or password." : result.error);
       } else if (result?.ok) {
-        setMessage("Check your email (or console in dev mode) for the login link. The link will redirect you to your dashboard upon successful verification.");
+        router.push("/dashboard"); // Redirect to supplier dashboard
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
@@ -44,7 +47,7 @@ export default function SupplierLoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Supplier Portal Login</CardTitle>
-          <CardDescription>Enter your email address to receive a magic link to login.</CardDescription>
+          <CardDescription>Enter your email and password to login.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -60,18 +63,25 @@ export default function SupplierLoginPage() {
                 disabled={isLoading}
               />
             </div>
-            {message && (
-              <p className="text-sm text-green-600 bg-green-50 p-2 rounded-md">
-                {message}
-              </p>
-            )}
+            <div className="space-y-2"> {/* Add Password Field */}
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            {/* Remove message paragraph */}
             {error && (
               <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">
                 {error}
               </p>
             )}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Sending link..." : "Send Login Link"}
+              {isLoading ? "Logging in..." : "Login"} {/* Change button text */}
             </Button>
           </form>
         </CardContent>
