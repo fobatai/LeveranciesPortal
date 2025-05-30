@@ -1623,7 +1623,8 @@ def display_customer_jobs(klant_id, jobs_for_customer, status_mappings_for_custo
     
     klant_naam, domein, api_key = klant
     
-    if not jobs:
+    print(f"DEBUG display_customer_jobs: jobs type = {type(jobs)}, value = {jobs}")
+    if jobs is None or not jobs:
         st.info("Geen jobs gevonden voor deze klant.")
         return
     
