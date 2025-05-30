@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Klant {
+  id                  Int                  @id @default(autoincrement())
+  naam                String
+  domein              String               @unique
+  api_key             String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  statusToewijzingen  StatusToewijzing[]
+  jobs                Job[] // Corrected from JobsCache[] to Job[]
+}
+
+model StatusToewijzing {
+  id          Int      @id @default(autoincrement())
+  klant_id    Int
+  van_status  String
+  naar_status String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  klant       Klant    @relation(fields: [klant_id], references: [id], onDelete: Cascade)
+
+  @@index([klant_id])
+}
+
+// Renamed from JobsCache
+model Job {
+  id                 String   @id // Job ID from Ultimo 'Id'
+  description        String   // Ultimo 'Description'
+  recordChangeDate   DateTime // Ultimo 'RecordChangeDate'
+  
+  statusId           String?   // Foreign key for UltimoProgressStatus
+  progressStatus     UltimoProgressStatus? @relation(fields: [statusId], references: [id])
+
+  vendorId           String?   // Foreign key for UltimoVendor
+  vendor             UltimoVendor?  @relation(fields: [vendorId], references: [id])
+  
+  // Retain these fields from original JobsCache, making klant_id optional
+  klant_id                  Int? 
+  klant                     Klant? @relation(fields: [klant_id], references: [id], onDelete: Cascade)
+  apparatuur_omschrijving   String?
+  processfunctie_omschrijving String?
+  // data                      Json // Commented out data field
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([statusId])
+  @@index([vendorId])
+  @@index([klant_id], map: "idx_job_klant_id")
+}
+
+model UltimoProgressStatus {
+  id          String @id // Ultimo 'Id' (e.g., "060")
+  description String // Ultimo 'Description' (e.g., "Open")
+  jobs        Job[]
+}
+
+model UltimoVendor {
+  id           String    @id // Ultimo 'Id' (e.g., "2010")
+  description  String?   // Ultimo 'Description' (e.g., "Carrier corp.")
+  emailAddress String?   // Ultimo 'EmailAddress'
+  jobs         Job[]
+  employees    UltimoEmployee[]
+}
+
+model UltimoEmployee {
+  id           String  @id     // Ultimo 'Id' (e.g., "000005")
+  description  String? // Ultimo 'Description' (e.g., "Petrauskas, F.")
+  emailAddress String  @unique // Ultimo 'EmailAddress', must be unique for login
+  vendorId     String
+  vendor       UltimoVendor @relation(fields: [vendorId], references: [id])
+}
+
+model Inlogcode {
+  id            Int      @id @default(autoincrement())
+  email         String
+  code          String
+  aangemaakt_op DateTime @default(now())
+  verloopt_op   DateTime
+  gebruikt      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+  @@index([code])
+}
+
+model EmailVerificationCache {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  verified  Boolean
+  timestamp DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SyncControl {
+  id            Int       @id @default(autoincrement())
+  force_sync    Boolean   @default(false)
+  last_sync     DateTime?
+  sync_interval Int       @default(3600)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// NextAuth.js specific models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // Using String? for SQLite compatibility with @db.Text
+  access_token      String? // Using String? for SQLite compatibility with @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // Using String? for SQLite compatibility with @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId]) // Added for performance
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Added for performance
+}
+
+model User {
+  id            String    @id @default(cuid()) // Changed from Int for NextAuth adapter
+  name          String?
+  email         String?   @unique // Email is optional as per NextAuth but usually unique if present
+  emailVerified DateTime?
+  image         String?
+  
+  // Custom fields
+  password_hash String?                 // For Credentials provider (admin)
+  role          String    @default("SUPPLIER") // "ADMIN", "SUPPLIER"
+
+  // Timestamps (handled by NextAuth adapter or manually)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations for NextAuth
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

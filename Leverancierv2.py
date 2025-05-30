@@ -29,6 +29,89 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom CSS for new design
+st.markdown("""
+<style>
+    /* Color Palette */
+    :root {
+        --primary-color: #007bff; /* Blue */
+        --secondary-color: #6c757d; /* Gray */
+        --background-color: #f0f2f6; /* Light Gray */
+        --card-background-color: #ffffff; /* White */
+        --text-color: #333333; /* Dark Gray */
+        --success-color: #28a745; /* Green */
+        --error-color: #dc3545; /* Red */
+        --border-color: #dee2e6; /* Light Gray Border */
+    }
+
+    body {
+        font-family: 'sans-serif';
+        color: var(--text-color);
+        background-color: var(--background-color);
+    }
+
+    /* Typography */
+    h1, h2, h3 {
+        font-family: 'sans-serif';
+        color: var(--primary-color);
+    }
+
+    /* Card-like containers */
+    .stCard {
+        background-color: var(--card-background-color);
+        padding: 25px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    /* Streamlit Button Styling */
+    .stButton>button {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #0056b3; /* Darker blue on hover */
+        color: white;
+    }
+    
+    /* Input fields */
+    .stTextInput input, .stTextArea textarea {
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        padding: 10px;
+    }
+
+    /* Footer styling */
+    .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 0.9em;
+        color: var(--secondary-color);
+        border-top: 1px solid var(--border-color);
+        margin-top: 40px;
+    }
+    
+    /* Status Badges (Example) */
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.9em;
+        font-weight: bold;
+        color: white;
+    }
+    .status-in-progress { background-color: var(--primary-color); }
+    .status-completed { background-color: var(--success-color); }
+    .status-pending { background-color: var(--secondary-color); }
+
+</style>
+""", unsafe_allow_html=True)
+
 # Database setup
 def init_db():
     conn = sqlite3.connect('leveranciers_portal.db')
@@ -752,116 +835,115 @@ def start_sync_thread():
 
 # Authenticatie
 def login_page():
-    # Header en logo
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("<div style='text-align: center;'><h1>📊 Leveranciers Portal</h1></div>", unsafe_allow_html=True)
-        st.markdown("<div style='text-align: center; margin-bottom: 30px;'>Beheer en update uw werkorders eenvoudig en efficiënt</div>", unsafe_allow_html=True)
+    # Centering the entire login page content
+    st.markdown("<div style='display: flex; justify-content: center; align-items: center;'>", unsafe_allow_html=True)
     
-    # Monteur login (hoofdgedeelte) - Vereenvoudigd proces
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+    main_col_width = [0.5, 2, 0.5] # Adjust ratios for wider/narrower central column
+    
+    # Using columns for centering the main content block
+    _, center_col, _ = st.columns(main_col_width)
+
+    with center_col:
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True) # Start of card
+
+        # Header
+        st.markdown("<div style='text-align: center;'><h1>📊 Leveranciers Portal</h1></div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 30px; font-size: 1.1em; color: var(--secondary-color);'>Beheer en update uw werkorders eenvoudig en efficiënt.</div>", unsafe_allow_html=True)
+        
         st.subheader("🔧 Monteur Toegang")
         
-        # Sla e-mail op in session state om het te behouden tussen formulieren
+        # Session state initialization
         if "email" not in st.session_state:
             st.session_state["email"] = ""
-        
-        # Toon code-formulier alleen na het verzenden van de code
         if "code_sent" not in st.session_state:
             st.session_state["code_sent"] = False
             
-        # Stap 1: E-mail invoeren
+        # Step 1: Email Input
         if not st.session_state["code_sent"]:
+            st.markdown("<p style='font-size:0.9em; color:var(--secondary-color);'>Voer uw e-mailadres in om een verificatiecode per e-mail te ontvangen.</p>", unsafe_allow_html=True)
             with st.form("email_form"):
-                st.markdown("Voer uw e-mailadres in om een verificatiecode te ontvangen:")
-                email = st.text_input("E-mailadres", placeholder="uw@email.nl")
+                email = st.text_input("📧 E-mailadres", placeholder="uw@email.nl", value=st.session_state.get("email", ""))
                 send_code_button = st.form_submit_button("Verificatiecode Versturen", use_container_width=True)
             
             if send_code_button and email:
-                # Controleer of e-mail bestaat in het systeem
+                st.session_state["email"] = email # Store email before checking
                 is_valid = check_email_exists(email)
                 if is_valid:
-                    if generate_login_code(email):
-                        st.session_state["email"] = email
+                    if generate_login_code(email): # This function now shows code in app for testing
                         st.session_state["code_sent"] = True
-                        st.success("Verificatiecode verstuurd! Controleer uw inbox.")
+                        # Success message is handled by generate_login_code for now
                         st.rerun()
                     else:
                         st.error("Versturen van code mislukt. Probeer het opnieuw.")
                 else:
-                    st.error("E-mailadres niet gevonden. Neem contact op met uw beheerder.")
+                    st.error("E-mailadres niet gevonden. Controleer uw invoer of neem contact op met uw beheerder.")
         
-        # Stap 2: Code invoeren
+        # Step 2: Code Input
         else:
             email = st.session_state["email"]
-            st.info(f"Verificatiecode is verstuurd naar {email}")
+            # The success message from generate_login_code will be visible here
+            st.info(f"Een verificatiecode is (voor testdoeleinden) hierboven weergegeven. In productie wordt deze naar {email} gemaild.")
             
-            # Gebruik de code uit de sessie indien beschikbaar
-            last_code = st.session_state.get("last_code", "")
+            last_code = st.session_state.get("last_code", "") # Get code from session (set by generate_login_code)
             
+            st.markdown("<p style='font-size:0.9em; color:var(--secondary-color);'>Voer de ontvangen (of hierboven getoonde) verificatiecode in.</p>", unsafe_allow_html=True)
             with st.form("code_form"):
-                st.markdown("Voer de ontvangen code in:")
-                code = st.text_input("Verificatiecode", value=last_code)  # Vooraf ingevuld voor demo
+                code = st.text_input("🔑 Verificatiecode", value=last_code, placeholder="123ABC")
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    back_button = st.form_submit_button("Terug", use_container_width=True)
-                with col2:
-                    submit_button = st.form_submit_button("Inloggen", use_container_width=True)
+                col1_form, col2_form = st.columns(2)
+                with col1_form:
+                    back_button = st.form_submit_button("⬅️ Terug naar e-mail", use_container_width=True)
+                with col2_form:
+                    submit_button = st.form_submit_button("🔒 Inloggen", use_container_width=True)
             
             if back_button:
                 st.session_state["code_sent"] = False
+                st.session_state["last_code"] = "" # Clear last code
                 st.rerun()
                 
             if submit_button and code:
                 if verify_login_code(email, code):
                     st.session_state["logged_in"] = True
                     st.session_state["user_email"] = email
+                    st.session_state.pop("code_sent", None) # Clean up session state
+                    st.session_state.pop("last_code", None)
+                    st.success("Succesvol ingelogd!")
+                    time.sleep(1) # Brief pause for user to see message
                     st.rerun()
                 else:
-                    st.error("Ongeldige of verlopen code. Probeer het opnieuw.")
+                    st.error("Ongeldige of verlopen code. Probeer het opnieuw of vraag een nieuwe code aan.")
             
-            # Voeg een optie toe om opnieuw een code te verzenden
-            if st.button("Nieuwe code versturen"):
+            if st.button("Nieuwe code aanvragen", key="resend_code_login"):
                 if generate_login_code(email):
-                    st.success("Nieuwe verificatiecode verstuurd! Controleer uw inbox.")
+                     # Message handled by generate_login_code
+                    st.rerun() # Rerun to update the displayed code if necessary
                 else:
-                    st.error("Versturen van code mislukt. Probeer het opnieuw.")
+                    st.error("Versturen van nieuwe code mislukt.")
         
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Admin login (klein in de hoek)
-    st.markdown("""
-    <style>
-    .admin-login {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 100;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    with st.container():
-        st.markdown("<div class='admin-login'>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True) # End of card
+
+        # Admin login (klein onder de kaart, nog steeds in center_col)
         with st.expander("⚙️ Admin Login"):
             with st.form("admin_login_form"):
-                admin_email = st.text_input("Admin E-mail", key="admin_email")
-                admin_code = st.text_input("Admin Code", key="admin_code")
-                admin_login = st.form_submit_button("Admin Inloggen")
+                admin_email = st.text_input("Admin E-mail", key="admin_email_login", placeholder="admin@example.com")
+                admin_code = st.text_input("Admin Code (elke code werkt)", key="admin_code_login", type="password")
+                admin_login_button = st.form_submit_button("Admin Inloggen", use_container_width=True)
             
-            if admin_login and admin_email and admin_code:
-                if admin_email == "admin@example.com" and verify_login_code(admin_email, admin_code):
+            if admin_login_button and admin_email and admin_code:
+                if admin_email == "admin@example.com" and verify_login_code(admin_email, admin_code): # verify_login_code handles admin bypass
                     st.session_state["logged_in"] = True
                     st.session_state["user_email"] = admin_email
+                    st.session_state.pop("code_sent", None)
+                    st.session_state.pop("last_code", None)
+                    st.success("Admin succesvol ingelogd!")
+                    time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Ongeldige admin inloggegevens")
-        st.markdown("</div>", unsafe_allow_html=True)
+                    st.error("Ongeldige admin inloggegevens.")
     
-    # Footer
+    st.markdown("</div>", unsafe_allow_html=True) # End of centering flex div
+
+    # Footer (outside the card and centering columns, but still within the overall page structure)
     st.markdown("<div class='footer'>© 2025 Leveranciers Portal - Een product van Pontifexx</div>", unsafe_allow_html=True)
 
 # Show sync info in sidebar
@@ -936,8 +1018,10 @@ def sidebar_sync_info():
 # Admin pagina's
 def admin_page():
     st.markdown("<h1>📊 Beheerders Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("Beheer klanten, statustoewijzingen en leverancierstoegang")
+    st.markdown("Beheer klanten, statustoewijzingen en leverancierstoegang.")
     
+    # Wrap the tab content in a card for overall consistency
+    st.markdown("<div class='stCard'>", unsafe_allow_html=True)
     tabs = st.tabs(["🏢 Klanten", "🔄 Status Toewijzingen", "👥 Leveranciers Toegang", "⚙️ Sync Instellingen"])
     
     with tabs[0]:
@@ -951,6 +1035,10 @@ def admin_page():
         
     with tabs[3]:
         manage_sync_settings()
+    st.markdown("</div>", unsafe_allow_html=True) # End of stCard for tabs
+    
+    # Footer for admin page
+    st.markdown("<div class='footer'>© 2025 Leveranciers Portal - Een product van Pontifexx</div>", unsafe_allow_html=True)
 
 def manage_sync_settings():
     st.markdown("<h2>⚙️ Sync Instellingen</h2>", unsafe_allow_html=True)
@@ -1082,12 +1170,13 @@ def manage_sync_settings():
 def manage_customers():
     st.markdown("<h2>🏢 Klanten Beheren</h2>", unsafe_allow_html=True)
     
-    # Formulier voor het toevoegen van een nieuwe klant
+    # Formulier voor het toevoegen van een nieuwe klant (wrap in stCard)
+    st.markdown("<div class='stCard'>", unsafe_allow_html=True)
     with st.form("add_customer_form"):
         st.subheader("Nieuwe Klant Toevoegen")
         naam = st.text_input("Klantnaam")
         domein = st.text_input("Domein (bijv. 025105.ultimo-demo.net)")
-        api_key = st.text_input("API Sleutel")
+        api_key = st.text_input("API Sleutel", type="password")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -1110,6 +1199,7 @@ def manage_customers():
         conn.commit()
         conn.close()
         st.success(f"Klant {naam} succesvol toegevoegd.")
+    st.markdown("</div>", unsafe_allow_html=True) # End of stCard for add customer form
     
     # Toon bestaande klanten
     display_customers()
@@ -1173,13 +1263,14 @@ def manage_progress_status_mappings():
     conn.close()
     
     if klanten_df.empty:
-        st.info("Voeg eerst klanten toe.")
+        st.info("Voeg eerst klanten toe om statussen toe te wijzen.")
         return
     
     klant_id = st.selectbox(
-        "Selecteer Klant", 
+        "Selecteer Klant voor Status Toewijzing", 
         klanten_df["id"].tolist(), 
-        format_func=lambda x: klanten_df[klanten_df["id"] == x]["naam"].iloc[0]
+        format_func=lambda x: klanten_df[klanten_df["id"] == x]["naam"].iloc[0],
+        key="select_klant_status_mapping"
     )
     
     klant_row = klanten_df[klanten_df["id"] == klant_id].iloc[0]
@@ -1190,17 +1281,18 @@ def manage_progress_status_mappings():
     voortgang_statussen = get_progress_statuses(domein, api_key)
     
     if not voortgang_statussen:
-        st.warning("Kan voortgangsstatussen niet ophalen. Controleer de API-verbinding.")
+        st.warning("Kan voortgangsstatussen niet ophalen. Controleer de API-verbinding van de klant.")
         return
     
     status_options = {status["Id"]: f"{status['Id']}: {status['Description']}" for status in voortgang_statussen}
     
-    # Formulier voor het toevoegen van een nieuwe toewijzing
+    # Formulier voor het toevoegen van een nieuwe toewijzing (wrap in stCard)
+    st.markdown("<div class='stCard'>", unsafe_allow_html=True)
     with st.form("add_mapping_form"):
-        st.subheader("Nieuwe Status Toewijzing")
+        st.subheader("Nieuwe Status Toewijzing Toevoegen")
         
-        van_status = st.selectbox("Van Status", list(status_options.keys()), format_func=lambda x: status_options[x])
-        naar_status = st.selectbox("Naar Status", list(status_options.keys()), format_func=lambda x: status_options[x])
+        van_status = st.selectbox("Van Status (Huidige status in Ultimo)", list(status_options.keys()), format_func=lambda x: status_options[x])
+        naar_status = st.selectbox("Naar Status (Status na update door leverancier)", list(status_options.keys()), format_func=lambda x: status_options[x])
         
         submit_button = st.form_submit_button("Toewijzing Toevoegen", use_container_width=True)
     
@@ -1227,6 +1319,7 @@ def manage_progress_status_mappings():
             st.success("Toewijzing succesvol toegevoegd.")
         
         conn.close()
+    st.markdown("</div>", unsafe_allow_html=True) # End of stCard for add mapping form
     
     # Toon bestaande toewijzingen
     conn = sqlite3.connect('leveranciers_portal.db')
@@ -1261,7 +1354,8 @@ def manage_progress_status_mappings():
         st.info("Nog geen toewijzingen toegevoegd voor deze klant.")
 
 def manage_supplier_access():
-    st.markdown("<h2>👥 Leveranciers Toegang</h2>", unsafe_allow_html=True)
+    st.markdown("<h2>👥 Leveranciers Toegang Overzicht</h2>", unsafe_allow_html=True)
+    st.markdown("Bekijk welke leveranciers (via e-mailadres in contactpersoon) toegang hebben tot jobs.")
     
     # Haal alle e-mails op uit leverancierscontacten
     conn = sqlite3.connect('leveranciers_portal.db')
@@ -1271,17 +1365,19 @@ def manage_supplier_access():
     c.execute("SELECT id, naam FROM klanten")
     klanten = c.fetchall()
     
-    klant_options = {klant_id: naam for klant_id, naam in klanten}
-    klant_options[0] = "Alle Klanten"
+    # Prepare options for selectbox, ensuring a default or valid selection
+    klant_options = {0: "Alle Klanten"} # Default option
+    klant_options.update({klant_id: naam for klant_id, naam in klanten})
     
-    selected_customer = st.selectbox(
+    selected_customer_id = st.selectbox(
         "Filter op Klant", 
-        list(klant_options.keys()),
-        format_func=lambda x: klant_options[x]
+        options=list(klant_options.keys()),
+        format_func=lambda x: klant_options[x],
+        key="select_klant_supplier_access"
     )
     
     # Bouw een query om e-mails uit jobgegevens te halen
-    if selected_customer == 0:
+    if selected_customer_id == 0:
         query = """
         SELECT jc.id, jc.omschrijving, k.naam as klant_naam, 
                json_extract(jc.data, '$.Vendor.ObjectContacts') as contacts,
@@ -1289,6 +1385,7 @@ def manage_supplier_access():
         FROM jobs_cache jc
         JOIN klanten k ON jc.klant_id = k.id
         """
+        c.execute(query)
     else:
         query = """
         SELECT jc.id, jc.omschrijving, k.naam as klant_naam, 
@@ -1298,11 +1395,7 @@ def manage_supplier_access():
         JOIN klanten k ON jc.klant_id = k.id
         WHERE jc.klant_id = ?
         """
-    
-    if selected_customer == 0:
-        c.execute(query)
-    else:
-        c.execute(query, (selected_customer,))
+        c.execute(query, (selected_customer_id,))
     
     jobs = c.fetchall()
     conn.close()
@@ -1381,7 +1474,6 @@ def manage_supplier_access():
 # Leverancier pagina's
 def supplier_page():
     st.markdown("<h1>🔧 Leveranciers Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("Bekijk en beheer uw toegewezen werkorders")
     
     # Haal e-mail van de ingelogde gebruiker op
     email = st.session_state.get("user_email")
@@ -1392,6 +1484,8 @@ def supplier_page():
     
     try:
         # Haal alle jobs op die aan deze e-mail zijn gekoppeld via leverancierscontacten
+        # Optimalisatie: Filter direct in SQL als mogelijk, of verfijn de Python filtering.
+        # Voor nu houden we de bestaande Python filtering.
         c.execute("""
         SELECT jc.id, jc.klant_id, k.naam as klant_naam, jc.omschrijving, 
                jc.apparatuur_omschrijving, jc.processfunctie_omschrijving, 
@@ -1400,132 +1494,123 @@ def supplier_page():
         JOIN klanten k ON jc.klant_id = k.id
         """)
         
-        all_jobs = c.fetchall()
+        all_jobs_raw = c.fetchall()
         
         # Filter jobs op basis van e-mail
-        jobs = []
-        for job in all_jobs:
-            job_id, klant_id, klant_naam, omschrijving, app_desc, proc_func_desc, voortgang_status, data_json = job
+        user_jobs = []
+        for job_raw in all_jobs_raw:
+            # job_raw structuur: job_id, klant_id, klant_naam, omschrijving, app_desc, proc_func_desc, voortgang_status, data_json
+            data_json = job_raw[7] 
             data = json.loads(data_json)
             
-            if 'Vendor' in data and data['Vendor'] is not None and 'ObjectContacts' in data['Vendor']:
+            if 'Vendor' in data and data['Vendor'] and 'ObjectContacts' in data['Vendor']:
                 for contact in data['Vendor']['ObjectContacts']:
-                    if 'Employee' in contact and contact['Employee'] is not None:
+                    if contact and 'Employee' in contact and contact['Employee']:
                         employee = contact['Employee']
-                        if 'EmailAddress' in employee and employee['EmailAddress'] == email:
-                            jobs.append(job)
-                            break
+                        if employee and 'EmailAddress' in employee and employee['EmailAddress'] == email:
+                            user_jobs.append(job_raw)
+                            break # Gevonden, ga naar volgende job
         
-        if not jobs:
-            st.markdown("<div class='stCard'>", unsafe_allow_html=True)
-            st.info("Geen jobs gevonden gekoppeld aan uw e-mail.")
-            st.markdown("</div>", unsafe_allow_html=True)
+        if not user_jobs:
+            st.markdown("<div class='stCard'>", unsafe_allow_html=True) # CARD START
+            st.markdown(f"Welkom terug, {st.session_state.get('user_email', 'Leverancier')}! Hier kunt u uw toegewezen werkorders bekijken en beheren.") # WELCOME MESSAGE
+            st.info("U heeft momenteel geen werkorders toegewezen die aan uw e-mailadres zijn gekoppeld.") # "NO WORK ORDERS" MESSAGE
+            st.markdown("</div>", unsafe_allow_html=True) # CARD END
             return
         
-        # Voeg debug-informatie toe
-        with st.expander("Technische Informatie"):
-            debug_rows = []
-            for job in jobs:
-                job_id, klant_id, klant_naam, omschrijving, app_desc, proc_func_desc, voortgang_status, data_json = job
-                debug_rows.append({
-                    "Job ID": job_id,
-                    "Omschrijving": omschrijving,
-                    "Voortgang Status": voortgang_status
-                })
-            
-            # Haal beschikbare voortgangsstatustoewijzingen op
-            c.execute("SELECT klant_id, van_status, naar_status FROM status_toewijzingen")
-            mappings_raw = c.fetchall()
-            
-            st.subheader("Uw Jobs")
-            st.dataframe(pd.DataFrame(debug_rows), use_container_width=True)
-            
-            st.subheader("Status Toewijzingen")
-            mappings_data = []
-            for klant_id, van_status, naar_status in mappings_raw:
-                mappings_data.append({
-                    "Klant ID": klant_id,
-                    "Van Status": van_status,
-                    "Naar Status": naar_status
-                })
-            
-            if mappings_data:
-                st.dataframe(pd.DataFrame(mappings_data), use_container_width=True)
-            else:
-                st.info("Geen status-toewijzingen gevonden. Vraag uw beheerder om status-toewijzingen te configureren.")
-        
+        # Technische info expander (optioneel, kan worden verwijderd voor productie)
+        # with st.expander("🔍 Technische Informatie & Ruwe Job Data"):
+        #     st.write(f"Aantal gevonden jobs voor {email}: {len(user_jobs)}")
+        #     st.json([json.loads(job[7]) for job in user_jobs[:2]], expanded=False) # Toon data van eerste 2 jobs
+
         # Groepeer jobs per klant
         jobs_by_customer = {}
-        jobs_data = {}
+        job_details_cache = {} # Cache voor de volledige JSON data van jobs
         
-        for job in jobs:
-            job_id, klant_id, klant_naam, omschrijving, app_desc, proc_func_desc, voortgang_status, data = job
+        for job_raw_data in user_jobs:
+            # Unpack de job data
+            job_id, klant_id, klant_naam, omschrijving, app_desc, proc_func_desc, voortgang_status, data_json = job_raw_data
             
             if klant_id not in jobs_by_customer:
                 jobs_by_customer[klant_id] = []
-                
-            job_dict = {
+            
+            # Store essentiële jobinformatie voor weergave
+            job_info_dict = {
                 "id": job_id,
                 "omschrijving": omschrijving,
                 "apparatuur_omschrijving": app_desc,
                 "processfunctie_omschrijving": proc_func_desc,
                 "voortgang_status": voortgang_status,
-                "klant_naam": klant_naam
+                "klant_naam": klant_naam # Behoud klantnaam voor tab headers
             }
+            jobs_by_customer[klant_id].append(job_info_dict)
+            job_details_cache[job_id] = json.loads(data_json) # Cache de volledige JSON
+        
+        # Haal status toewijzingen op voor de relevante klanten
+        customer_status_mappings = {}
+        if jobs_by_customer: # Alleen query als er jobs zijn
+            relevant_klant_ids = tuple(jobs_by_customer.keys())
+            placeholders = ','.join('?' for _ in relevant_klant_ids)
             
-            jobs_by_customer[klant_id].append(job_dict)
-            jobs_data[job_id] = json.loads(data)
-        
-        # Haal beschikbare voortgangsstatustoewijzingen op voor elke klant
-        customer_mappings = {}
-        
-        for klant_id in jobs_by_customer.keys():
-            c.execute("""
-            SELECT van_status, naar_status FROM status_toewijzingen
-            WHERE klant_id = ?
-            """, (klant_id,))
+            c.execute(f"""
+            SELECT klant_id, van_status, naar_status FROM status_toewijzingen
+            WHERE klant_id IN ({placeholders})
+            """, relevant_klant_ids)
             
-            mappings = c.fetchall()
-            customer_mappings[klant_id] = {van_status: naar_status for van_status, naar_status in mappings}
+            mappings_raw = c.fetchall()
+            for klant_id_map, van_status, naar_status in mappings_raw:
+                if klant_id_map not in customer_status_mappings:
+                    customer_status_mappings[klant_id_map] = {}
+                customer_status_mappings[klant_id_map][van_status] = naar_status
         
-        # Toon werkorders per klant met tabbladen
-        st.markdown("<div class='stCard'>", unsafe_allow_html=True)
+        # Hoofdkaart voor het dashboard van de leverancier
+        st.markdown("<div class='stCard'>", unsafe_allow_html=True) # MAIN CARD START
+        st.markdown(f"Welkom terug, {st.session_state.get('user_email', 'Leverancier')}! Hier kunt u uw toegewezen werkorders bekijken en beheren.") # WELCOME MESSAGE
+
+        # Statistieken bovenaan
+        total_user_jobs = len(user_jobs)
+        processable_job_count = 0
+        for klant_id_stat, job_list_stat in jobs_by_customer.items():
+            for job_stat in job_list_stat:
+                if job_stat["voortgang_status"] in customer_status_mappings.get(klant_id_stat, {}):
+                    processable_job_count += 1
         
-        # Toon statistieken
-        total_jobs = sum(len(jobs) for jobs in jobs_by_customer.values())
-        processable_count = 0
-        for klant_id, jobs_list in jobs_by_customer.items():
-            for job in jobs_list:
-                if job["voortgang_status"] in customer_mappings.get(klant_id, {}):
-                    processable_count += 1
+        stat_col1, stat_col2, stat_col3 = st.columns(3)
+        stat_col1.metric("Totaal Toegewezen Werkorders", total_user_jobs)
+        stat_col2.metric("Direct Te Verwerken Werkorders", processable_job_count)
+        stat_col3.metric("Klanten met Werkorders", len(jobs_by_customer))
+        st.markdown("---") # Divider
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Totaal aantal werkorders", total_jobs)
-        with col2:
-            st.metric("Te verwerken werkorders", processable_count)
-        with col3:
-            st.metric("Klanten", len(jobs_by_customer))
-        
-        # Maak tabbladen voor elke klant
-        if len(jobs_by_customer) > 0:
-            customer_tabs = st.tabs([f"🏢 {jobs_by_customer[klant_id][0]['klant_naam']} ({len(jobs_by_customer[klant_id])} jobs)" 
-                                    for klant_id in jobs_by_customer.keys()])
+        # Maak tabbladen voor elke klant waarvoor de leverancier jobs heeft
+        if jobs_by_customer:
+            # Sorteer klanten op naam voor consistente tabvolgorde
+            sorted_customer_ids = sorted(jobs_by_customer.keys(), key=lambda k: jobs_by_customer[k][0]['klant_naam'])
+
+            tab_titles = [
+                f"🏢 {jobs_by_customer[k_id][0]['klant_naam']} ({len(jobs_by_customer[k_id])} jobs)"
+                for k_id in sorted_customer_ids
+            ]
+            customer_tabs = st.tabs(tab_titles)
             
-            for i, (klant_id, jobs) in enumerate(jobs_by_customer.items()):
+            for i, k_id in enumerate(sorted_customer_ids):
                 with customer_tabs[i]:
-                    display_customer_jobs(klant_id, jobs, customer_mappings[klant_id], jobs_data)
-        st.markdown("</div>", unsafe_allow_html=True)
+                    # customer_status_mappings.get(k_id, {}) zorgt voor een lege dict als er geen mappings zijn
+                    display_customer_jobs(k_id, jobs_by_customer[k_id], customer_status_mappings.get(k_id, {}), job_details_cache)
+        else:
+            # Dit zou al eerder afgevangen moeten zijn, maar als fallback:
+            st.info("Geen werkorders gevonden die aan u zijn toegewezen.")
+            
+        st.markdown("</div>", unsafe_allow_html=True) # Einde hoofdkaart leverancier dashboard
     
     finally:
         # Sluit altijd de verbinding wanneer klaar
         conn.close()
     
-    # Footer
+    # Footer (blijft aan het einde van de supplier_page functie)
     st.markdown("<div class='footer'>© 2025 Leveranciers Portal - Een product van Pontifexx</div>", unsafe_allow_html=True)
 
-def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
-    # Haal klantinformatie op
+def display_customer_jobs(klant_id, jobs_for_customer, status_mappings_for_customer, all_jobs_data_cache):
+    # Haal klantinformatie op (domein, api_key)
     conn = sqlite3.connect('leveranciers_portal.db')
     c = conn.cursor()
     c.execute("SELECT naam, domein, api_key FROM klanten WHERE id = ?", (klant_id,))
@@ -1538,7 +1623,8 @@ def display_customer_jobs(klant_id, jobs, mappings, jobs_data):
     
     klant_naam, domein, api_key = klant
     
-    if not jobs:
+    print(f"DEBUG display_customer_jobs: jobs type = {type(jobs)}, value = {jobs}")
+    if jobs is None or not jobs:
         st.info("Geen jobs gevonden voor deze klant.")
         return
     
@@ -1738,45 +1824,42 @@ def main():
     
     # Initialize session state for page navigation if not exists
     if "current_page" not in st.session_state:
-        st.session_state["current_page"] = "supplier"
-    
-    # Show sync status in sidebar if logged in
+        st.session_state["current_page"] = "supplier" # Default page after login
+
+    # Sidebar for logged-in users
     if st.session_state.get("logged_in", False):
         with st.sidebar:
+            # Company Logo Placeholder
+            st.image("https://via.placeholder.com/150x50.png?text=Uw+Logo+Hier", width=150) # Placeholder logo
+            st.markdown("---") # Divider
+
             sidebar_sync_info()
+            st.markdown("---") # Divider
             
-            # Navigation buttons
-            st.write("### Navigatie")
+            st.markdown("### 🧭 Navigatie")
             
+            # Admin gets more options
             if st.session_state.get("user_email") == "admin@example.com":
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    if st.button("Admin", use_container_width=True):
-                        st.session_state["current_page"] = "admin"
-                        st.rerun()
-                with col2:
-                    if st.button("Leverancier", use_container_width=True):
-                        st.session_state["current_page"] = "supplier"
-                        st.rerun()
-                with col3:
-                    if st.button("Uitloggen", use_container_width=True):
-                        st.session_state["logged_in"] = False
-                        st.session_state.pop("user_email", None)
-                        st.rerun()
-            else:
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Dashboard", use_container_width=True):
-                        st.session_state["current_page"] = "supplier"
-                        st.rerun()
-                with col2:
-                    if st.button("Uitloggen", use_container_width=True):
-                        st.session_state["logged_in"] = False
-                        st.session_state.pop("user_email", None)
-                        st.rerun()
+                if st.button("🔑 Admin Dashboard", use_container_width=True, key="nav_admin"):
+                    st.session_state["current_page"] = "admin"
+                    st.rerun()
+                if st.button("🔧 Leverancier Dashboard", use_container_width=True, key="nav_supplier_admin_view"):
+                    st.session_state["current_page"] = "supplier"
+                    st.rerun()
+            else: # Regular supplier view
+                if st.button("🏠 Mijn Dashboard", use_container_width=True, key="nav_supplier_dashboard"):
+                    st.session_state["current_page"] = "supplier"
+                    st.rerun()
+            
+            st.markdown("---") # Divider
+            if st.button("🚪 Uitloggen", use_container_width=True, key="nav_logout"):
+                # Clear relevant session state on logout
+                for key in ["logged_in", "user_email", "code_sent", "last_code", "current_page", "email"]:
+                    st.session_state.pop(key, None)
+                st.rerun()
     
     # Display the appropriate page based on login status and current page
-    if st.session_state["logged_in"]:
+    if st.session_state.get("logged_in", False):
         current_page = st.session_state.get("current_page", "supplier")
         if current_page == "admin" and st.session_state.get("user_email") == "admin@example.com":
             admin_page()
