@@ -1,45 +1,47 @@
-"use client";
+'use client';
 
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Skeleton } from "@/components/ui/skeleton"; // For loading state
+import React, { useEffect, useState, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface AuthenticatedPageLayoutProps {
-  children: React.ReactNode;
-  title: string;
+  children: ReactNode;
 }
 
-export default function AuthenticatedPageLayout({ children, title }: AuthenticatedPageLayoutProps) {
-  const { data: session, status } = useSession();
+export default function AuthenticatedPageLayout({ children }: AuthenticatedPageLayoutProps) {
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === "loading") return; // Do nothing while loading
-    if (!session) {
-      // If not authenticated, redirect to login page
-      // Pass the current path as callbackUrl to redirect back after login
-      router.replace("/login?callbackUrl=" + encodeURIComponent(window.location.pathname));
+    const email = localStorage.getItem('userEmail');
+    if (!email) {
+      router.push('/login');
+    } else {
+      setUserEmail(email);
+      setIsAuthenticated(true);
     }
-    // No specific role check here, just authentication.
-    // Role-specific logic can be handled within the page if needed,
-    // or by API routes.
-  }, [session, status, router]);
+  }, [router]);
 
-  if (status === "loading" || !session) {
-    // Show a loading state or a blank page while checking session and redirecting
-    return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <Skeleton className="h-8 w-1/4 mb-4" />
-        <Skeleton className="h-screen w-full" />
-      </div>
-    );
+  const handleLogout = () => {
+    localStorage.removeItem('userEmail');
+    setUserEmail(null);
+    setIsAuthenticated(false);
+    router.push('/login');
+  };
+
+  if (!isAuthenticated) {
+    // You can return a loader here if you want
+    return null;
   }
 
-  // User is authenticated
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-2xl font-bold tracking-tight mb-6">{title}</h1>
+    <div>
+      <nav style={{ padding: '1rem', backgroundColor: '#f0f0f0', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between' }}>
+        <div>
+          {userEmail ? `Logged in as: ${userEmail}` : 'Not logged in'}
+        </div>
+        <button onClick={handleLogout}>Logout</button>
+      </nav>
       {children}
     </div>
   );

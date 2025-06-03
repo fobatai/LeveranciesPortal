@@ -11,14 +11,14 @@ datasource db {
 }
 
 model Klant {
-  id                  Int                  @id @default(autoincrement())
-  naam                String
-  domein              String               @unique
-  api_key             String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  statusToewijzingen  StatusToewijzing[]
-  jobs                Job[] // Corrected from JobsCache[] to Job[]
+  id                 Int                @id @default(autoincrement())
+  naam               String
+  domein             String             @unique
+  api_key            String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  statusToewijzingen StatusToewijzing[]
+  jobs               Job[] // Corrected from JobsCache[] to Job[]
 }
 
 model StatusToewijzing {
@@ -35,25 +35,25 @@ model StatusToewijzing {
 
 // Renamed from JobsCache
 model Job {
-  id                 String   @id // Job ID from Ultimo 'Id'
-  description        String   // Ultimo 'Description'
-  recordChangeDate   DateTime // Ultimo 'RecordChangeDate'
-  
-  statusId           String?   // Foreign key for UltimoProgressStatus
-  progressStatus     UltimoProgressStatus? @relation(fields: [statusId], references: [id])
+  id               String   @id // Job ID from Ultimo 'Id'
+  description      String // Ultimo 'Description'
+  recordChangeDate DateTime // Ultimo 'RecordChangeDate'
 
-  vendorId           String?   // Foreign key for UltimoVendor
-  vendor             UltimoVendor?  @relation(fields: [vendorId], references: [id])
-  
+  statusId       String? // Foreign key for UltimoProgressStatus
+  progressStatus UltimoProgressStatus? @relation(fields: [statusId], references: [id])
+
+  vendorId String? // Foreign key for UltimoVendor
+  vendor   UltimoVendor? @relation(fields: [vendorId], references: [id])
+
   // Retain these fields from original JobsCache, making klant_id optional
-  klant_id                  Int? 
-  klant                     Klant? @relation(fields: [klant_id], references: [id], onDelete: Cascade)
-  apparatuur_omschrijving   String?
+  klant_id                    Int?
+  klant                       Klant?  @relation(fields: [klant_id], references: [id], onDelete: Cascade)
+  apparatuur_omschrijving     String?
   processfunctie_omschrijving String?
   // data                      Json // Commented out data field
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([statusId])
   @@index([vendorId])
@@ -67,17 +67,17 @@ model UltimoProgressStatus {
 }
 
 model UltimoVendor {
-  id           String    @id // Ultimo 'Id' (e.g., "2010")
-  description  String?   // Ultimo 'Description' (e.g., "Carrier corp.")
-  emailAddress String?   // Ultimo 'EmailAddress'
+  id           String           @id // Ultimo 'Id' (e.g., "2010")
+  description  String? // Ultimo 'Description' (e.g., "Carrier corp.")
+  emailAddress String? // Ultimo 'EmailAddress'
   jobs         Job[]
   employees    UltimoEmployee[]
 }
 
 model UltimoEmployee {
-  id           String  @id     // Ultimo 'Id' (e.g., "000005")
+  id           String       @id // Ultimo 'Id' (e.g., "000005")
   description  String? // Ultimo 'Description' (e.g., "Petrauskas, F.")
-  emailAddress String  @unique // Ultimo 'EmailAddress', must be unique for login
+  emailAddress String       @unique // Ultimo 'EmailAddress', must be unique for login
   vendorId     String
   vendor       UltimoVendor @relation(fields: [vendorId], references: [id])
 }
@@ -103,6 +103,21 @@ model EmailVerificationCache {
   timestamp DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model StatusMapping {
+  id                      String   @id @default(cuid())
+  erpSystemId             String
+  sourceStatusId          String // ID from Ultimo's ProgressStatus
+  sourceStatusDescription String // Description from Ultimo
+  targetStatusId          String // ID from Ultimo's ProgressStatus
+  targetStatusDescription String // Description from Ultimo
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  erpSystem ErpSystem @relation(fields: [erpSystemId], references: [id], onDelete: Cascade)
+
+  @@unique([erpSystemId, sourceStatusId]) // Ensures a source status can only be mapped once per ERP system
 }
 
 model SyncControl {
@@ -151,18 +166,18 @@ model User {
   email         String?   @unique // Email is optional as per NextAuth but usually unique if present
   emailVerified DateTime?
   image         String?
-  
+
   // Custom fields
-  password_hash String?                 // For Credentials provider (admin)
-  role          String    @default("SUPPLIER") // "ADMIN", "SUPPLIER"
+  password_hash String? // For Credentials provider (admin)
+  role          String  @default("SUPPLIER") // "ADMIN", "SUPPLIER"
 
   // Timestamps (handled by NextAuth adapter or manually)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations for NextAuth
-  accounts      Account[]
-  sessions      Session[]
+  accounts Account[]
+  sessions Session[]
 }
 
 model VerificationToken {
@@ -171,4 +186,14 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model ErpSystem {
+  id            String          @id @default(cuid())
+  name          String          @unique
+  domain        String
+  apiKey        String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  StatusMapping StatusMapping[]
 }

@@ -1,69 +1,54 @@
-import { NextResponse, NextRequest } from "next/server";
-import prisma from "@/lib/db";
-import { withAdminAuth } from "@/lib/authHelpers";
+import { NextResponse, NextRequest } from 'next/server';
+import prisma from '@/lib/db'; // Assumes prisma client is exported from @/lib/db
 
-// GET all ERP systems
-export const GET = withAdminAuth(async (req: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
-    const erpSystems = await prisma.klant.findMany({
-      select: {
-        id: true,
-        naam: true,
-        domein: true,
-        createdAt: true,
-        updatedAt: true,
-        // Exclude api_key for security
-      },
-      orderBy: {
-        naam: "asc",
-      },
-    });
-    return NextResponse.json(erpSystems);
-  } catch (error) {
-    console.error("Error fetching ERP systems:", error);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
-  }
-});
+    const body = await request.json();
+    const { name, domain, apiKey } = body;
 
-// POST a new ERP system
-export const POST = withAdminAuth(async (req: NextRequest) => {
-  try {
-    const body = await req.json();
-    const { naam, domein, api_key } = body;
-
-    if (!naam || !domein || !api_key) {
-      return NextResponse.json({ message: "Missing required fields (naam, domein, api_key)" }, { status: 400 });
+    // Basic validation
+    if (!name || !domain || !apiKey) {
+      return NextResponse.json({ message: 'Missing required fields (name, domain, apiKey)' }, { status: 400 });
     }
 
-    // TODO: Implement API key encryption before storing in production.
-    // For now, storing as plain text as per subtask instructions.
-    // const encryptedApiKey = encrypt(api_key); 
-
-    const existingKlantByDomain = await prisma.klant.findUnique({
-      where: { domein },
+    // Check if an ERP system with the same name already exists
+    const existingErpSystem = await prisma.erpSystem.findUnique({
+      where: { name },
     });
 
-    if (existingKlantByDomain) {
-      return NextResponse.json({ message: "Domain already in use." }, { status: 409 }); // 409 Conflict
+    if (existingErpSystem) {
+      return NextResponse.json({ message: `An ERP system with the name '${name}' already exists.` }, { status: 409 }); // 409 Conflict
     }
-    
-    const newErpSystem = await prisma.klant.create({
+
+    const newErpSystem = await prisma.erpSystem.create({
       data: {
-        naam,
-        domein,
-        api_key, // Store plain text api_key for now
+        name,
+        domain,
+        apiKey, // Storing apiKey as plain text as per current requirements
       },
     });
 
-    // Exclude api_key from the response
-    const { api_key: _, ...responseSystem } = newErpSystem;
-    return NextResponse.json(responseSystem, { status: 201 });
-
+    return NextResponse.json(newErpSystem, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating ERP system:", error);
-    if (error.code === 'P2002' && error.meta?.target?.includes('domein')) {
-      return NextResponse.json({ message: "Domain already in use." }, { status: 409 });
+    console.error('Error creating ERP system:', error);
+    // Handle specific Prisma unique constraint error for name
+    if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
+      return NextResponse.json({ message: `An ERP system with the name '${error.meta?.target?.[0] || 'provided'}' already exists.` }, { status: 409 });
     }
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
-});
+}
+
+export async function GET() {
+  try {
+    const erpSystems = await prisma.erpSystem.findMany({
+      orderBy: {
+        createdAt: 'desc', // Optional: order by creation date
+      },
+    });
+    return NextResponse.json(erpSystems, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching ERP systems:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+}

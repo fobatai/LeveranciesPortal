@@ -1,347 +1,242 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import AdminPageLayout from "../AdminPageLayout";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableCaption,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { StatusMappingForm, StatusMappingFormValues } from "@/components/admin/status-mappings/StatusMappingForm";
-import { useToast } from "@/components/ui/use-toast";
-import { PlusCircle, Edit, Trash2, MoreHorizontal, AlertTriangle, ListFilter } from "lucide-react";
-import { Klant, StatusToewijzing } from "@prisma/client";
-import { Skeleton } from "@/components/ui/skeleton";
+import React, { useState, useEffect, ChangeEvent } from 'react';
 
-type DisplayKlant = Omit<Klant, "api_key">;
+// Define an interface for the ErpSystem objects we expect from the API
+interface ErpSystem {
+  id: string;
+  name: string;
+  domain: string;
+  apiKey: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-export default function StatusMappingsPage() {
-  const { toast } = useToast();
-  const [erpSystems, setErpSystems] = useState<DisplayKlant[]>([]);
-  const [selectedKlantId, setSelectedKlantId] = useState<string | null>(null);
-  const [statusMappings, setStatusMappings] = useState<StatusToewijzing[]>([]);
-  
-  const [isLoadingErps, setIsLoadingErps] = useState(true);
-  const [isLoadingMappings, setIsLoadingMappings] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Interface for ProgressStatus items from Ultimo API
+interface ProgressStatusItem {
+  Id: string;
+  Description: string;
+  Context?: number; // Example: 0 for Job, 1 for WorkOrder
+  HoursAreMandatory?: boolean;
+  IsSystem?: boolean;
+  IsBlocked?: boolean;
+  // Add other fields if necessary, based on actual API response
+}
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedMapping, setSelectedMapping] = useState<StatusToewijzing | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function StatusMappingsAdminPage() {
+  const [erpSystems, setErpSystems] = useState<ErpSystem[]>([]);
+  const [selectedErpSystemId, setSelectedErpSystemId] = useState<string>('');
+  const [isLoadingErpSystems, setIsLoadingErpSystems] = useState<boolean>(true);
+  const [errorErpSystems, setErrorErpSystems] = useState<string | null>(null);
 
-  const fetchErpSystems = useCallback(async () => {
-    setIsLoadingErps(true);
-    try {
-      const response = await fetch("/api/admin/erp-systems");
-      if (!response.ok) throw new Error("Failed to fetch ERP systems");
-      const data = await response.json();
-      setErpSystems(data);
-      if (data.length > 0 && !selectedKlantId) {
-        // setSelectedKlantId(data[0].id.toString()); // Auto-select first ERP
-      }
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-      setError(err.message);
-    } finally {
-      setIsLoadingErps(false);
-    }
-  }, [toast, selectedKlantId]);
-
-  const fetchStatusMappings = useCallback(async (klantId: string) => {
-    if (!klantId) {
-      setStatusMappings([]);
-      return;
-    }
-    setIsLoadingMappings(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/admin/status-mappings?klant_id=${klantId}`);
-      if (!response.ok) throw new Error("Failed to fetch status mappings");
-      const data = await response.json();
-      setStatusMappings(data);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-      setError(err.message); // Set error for mappings loading
-    } finally {
-      setIsLoadingMappings(false);
-    }
-  }, [toast]);
+  const [progressStatuses, setProgressStatuses] = useState<ProgressStatusItem[]>([]);
+  const [isLoadingProgressStatuses, setIsLoadingProgressStatuses] = useState<boolean>(false);
+  const [errorProgressStatuses, setErrorProgressStatuses] = useState<string | null>(null);
+  const [sourceStatusId, setSourceStatusId] = useState<string>('');
+  const [targetStatusId, setTargetStatusId] = useState<string>('');
 
   useEffect(() => {
+    const fetchErpSystems = async () => {
+      setIsLoadingErpSystems(true);
+      setErrorErpSystems(null);
+      try {
+        const response = await fetch('/api/admin/erp-systems');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to fetch ERP systems: ${response.statusText}`);
+        }
+        const data: ErpSystem[] = await response.json();
+        setErpSystems(data);
+        // Optionally, select the first ERP system by default
+        // if (data.length > 0) {
+        //   setSelectedErpSystemId(data[0].id);
+        // }
+      } catch (err: any) {
+        setErrorErpSystems(err.message);
+        console.error("Error fetching ERP systems:", err);
+      } finally {
+        setIsLoadingErpSystems(false);
+      }
+    };
+
     fetchErpSystems();
-  }, [fetchErpSystems]);
+  }, []); // Runs once on component mount
 
+  // Effect to fetch progress statuses when selectedErpSystemId changes
   useEffect(() => {
-    if (selectedKlantId) {
-      fetchStatusMappings(selectedKlantId);
-    } else {
-      setStatusMappings([]); // Clear mappings if no Klant is selected
-    }
-  }, [selectedKlantId, fetchStatusMappings]);
-
-  const handleAddSubmit = async (values: StatusMappingFormValues) => {
-    if (!selectedKlantId) {
-      toast({ title: "Error", description: "Please select an ERP system first.", variant: "destructive" });
+    if (!selectedErpSystemId) {
+      setProgressStatuses([]);
+      setSourceStatusId('');
+      setTargetStatusId('');
+      setErrorProgressStatuses(null);
       return;
     }
-    setIsSubmitting(true);
-    try {
-      const response = await fetch("/api/admin/status-mappings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, klant_id: parseInt(selectedKlantId) }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create status mapping");
+
+    const fetchProgressStatuses = async () => {
+      setIsLoadingProgressStatuses(true);
+      setErrorProgressStatuses(null);
+      setSourceStatusId(''); // Reset source status on new ERP selection
+      setTargetStatusId(''); // Reset target status on new ERP selection
+
+      const selectedErp = erpSystems.find(erp => erp.id === selectedErpSystemId);
+      if (!selectedErp) {
+        setErrorProgressStatuses("Selected ERP system details not found.");
+        setIsLoadingProgressStatuses(false);
+        setProgressStatuses([]);
+        return;
       }
-      toast({ title: "Success", description: "Status mapping created." });
-      fetchStatusMappings(selectedKlantId);
-      setIsAddDialogOpen(false);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
+
+      const { domain, apiKey } = selectedErp;
+      // Ensure domain does not end with a slash and path starts with one
+      const cleanDomain = domain.endsWith('/') ? domain.slice(0, -1) : domain;
+      const apiUrl = `${cleanDomain}/api/v1/object/ProgressStatus`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'ApiKey': apiKey,
+            'Accept': 'application/json', // Specify we want JSON response
+          },
+        });
+
+        if (!response.ok) {
+          let errorMsg = `Failed to fetch progress statuses: ${response.status} ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorData.title || errorMsg;
+          } catch (e) {
+            // Ignore if response is not JSON
+          }
+          throw new Error(errorMsg);
+        }
+
+        // Assuming the response directly contains the items array or an object with a 'value' or 'items' property
+        const data = await response.json();
+        let items: ProgressStatusItem[] = [];
+        if (Array.isArray(data)) { // Response is directly an array of items
+            items = data;
+        } else if (data && Array.isArray(data.items)) { // Response is an object like { items: [] }
+            items = data.items;
+        } else if (data && data.value && Array.isArray(data.value.items)) { // Response is an object like { value: { items: [] } } - common in OData
+            items = data.value.items;
+        } else if (data && data.value && Array.isArray(data.value)) { // Response is an object like { value: [] } - also common in OData for direct array
+             items = data.value;
+        }
+         else {
+          console.warn("Unexpected response structure for ProgressStatus:", data);
+          throw new Error("Unexpected response structure for ProgressStatus. Expected an array of items or an object containing an items array.");
+        }
+        setProgressStatuses(items);
+
+      } catch (err: any) {
+        setErrorProgressStatuses(err.message);
+        setProgressStatuses([]); // Clear statuses on error
+        console.error("Error fetching progress statuses:", err);
+      } finally {
+        setIsLoadingProgressStatuses(false);
+      }
+    };
+
+    fetchProgressStatuses();
+  }, [selectedErpSystemId, erpSystems]);
+
+  const handleErpSystemChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setSelectedErpSystemId(event.target.value);
   };
 
-  const handleEditSubmit = async (values: StatusMappingFormValues) => {
-    if (!selectedMapping || !selectedKlantId) return;
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/admin/status-mappings/${selectedMapping.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update status mapping");
-      }
-      toast({ title: "Success", description: "Status mapping updated." });
-      fetchStatusMappings(selectedKlantId);
-      setIsEditDialogOpen(false);
-      setSelectedMapping(null);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSourceStatusChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setSourceStatusId(event.target.value);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!selectedMapping || !selectedKlantId) return;
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/admin/status-mappings/${selectedMapping.id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete status mapping");
-      }
-      toast({ title: "Success", description: "Status mapping deleted." });
-      fetchStatusMappings(selectedKlantId);
-      setIsDeleteDialogOpen(false);
-      setSelectedMapping(null);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const openEditDialog = (mapping: StatusToewijzing) => {
-    setSelectedMapping(mapping);
-    setIsEditDialogOpen(true);
-  };
-
-  const openDeleteDialog = (mapping: StatusToewijzing) => {
-    setSelectedMapping(mapping);
-    setIsDeleteDialogOpen(true);
+  const handleTargetStatusChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setTargetStatusId(event.target.value);
   };
 
   return (
-    <AdminPageLayout title="Manage Status Mappings">
-      <div className="mb-6 space-y-4 md:flex md:items-end md:space-x-4 md:space-y-0">
-        <div className="flex-1 min-w-[200px]">
-          <label htmlFor="erp-select" className="block text-sm font-medium text-muted-foreground mb-1">
-            Select ERP System
-          </label>
-          {isLoadingErps ? (
-            <Skeleton className="h-10 w-full" />
-          ) : (
-            <Select onValueChange={setSelectedKlantId} value={selectedKlantId || ""}>
-              <SelectTrigger id="erp-select">
-                <SelectValue placeholder="Select an ERP System..." />
-              </SelectTrigger>
-              <SelectContent>
-                {erpSystems.map((erp) => (
-                  <SelectItem key={erp.id} value={erp.id.toString()}>
-                    {erp.naam} ({erp.domein})
-                  </SelectItem>
-                ))}
-                {erpSystems.length === 0 && <p className="p-4 text-sm text-muted-foreground">No ERP systems found.</p>}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!selectedKlantId || isLoadingErps}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Mapping
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[480px]">
-            <DialogHeader>
-              <DialogTitle>Add New Status Mapping</DialogTitle>
-              <DialogDescription>
-                Define a new status mapping for the selected ERP system.
-              </DialogDescription>
-            </DialogHeader>
-            <StatusMappingForm onSubmit={handleAddSubmit} isLoading={isSubmitting} />
-          </DialogContent>
-        </Dialog>
+    <div>
+      <h2>Configure Status Mappings</h2>
+
+      <div style={{ margin: '20px 0' }}>
+        <label htmlFor="erp-system-select" style={{ display: 'block', marginBottom: '5px' }}>Select ERP System:</label>
+        {isLoadingErpSystems && <p>Loading ERP Systems...</p>}
+        {errorErpSystems && <p style={{ color: 'red' }}>Error loading ERP Systems: {errorErpSystems}</p>}
+        {!isLoadingErpSystems && !errorErpSystems && (
+          <select
+            id="erp-system-select"
+            value={selectedErpSystemId}
+            onChange={handleErpSystemChange}
+            style={{ padding: '8px', minWidth: '300px', marginBottom: '20px' }}
+          >
+            <option value="">-- Select an ERP System --</option>
+            {erpSystems.map((erp) => (
+              <option key={erp.id} value={erp.id}>
+                {erp.name} ({erp.domain})
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {selectedKlantId && (
-        isLoadingMappings ? (
-          <div className="space-y-2 mt-4">
-            <Skeleton className="h-10 w-1/3" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : error && statusMappings.length === 0 ? (
-             <div className="flex flex-col items-center justify-center h-64 border rounded-md bg-card mt-4">
-                <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-                <p className="text-xl text-destructive">Error loading status mappings.</p>
-                <p className="text-sm text-muted-foreground">{error}</p>
-                <Button onClick={() => fetchStatusMappings(selectedKlantId)} variant="outline" className="mt-4">Try Again</Button>
+      {selectedErpSystemId && (
+        <div>
+          <h3>Status Mapping for: {erpSystems.find(erp => erp.id === selectedErpSystemId)?.name || 'Selected ERP'}</h3>
+          {isLoadingProgressStatuses && <p>Loading statuses...</p>}
+          {errorProgressStatuses && <p style={{ color: 'red' }}>Error loading statuses: {errorProgressStatuses}</p>}
+
+          {!isLoadingProgressStatuses && !errorProgressStatuses && progressStatuses.length > 0 && (
+            <div style={{ marginTop: '20px', padding: '20px', border: '1px solid #eee' }}>
+              <div style={{ marginBottom: '15px' }}>
+                <label htmlFor="source-status-select" style={{ display: 'block', marginBottom: '5px' }}>Source Status (from ERP):</label>
+                <select
+                  id="source-status-select"
+                  value={sourceStatusId}
+                  onChange={handleSourceStatusChange}
+                  style={{ padding: '8px', minWidth: '250px' }}
+                >
+                  <option value="">-- Select Source Status --</option>
+                  {progressStatuses.map((status) => (
+                    <option key={status.Id} value={status.Id}>
+                      {status.Description} (ID: {status.Id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label htmlFor="target-status-select" style={{ display: 'block', marginBottom: '5px' }}>Target Status (in Portal):</label>
+                <select
+                  id="target-status-select"
+                  value={targetStatusId}
+                  onChange={handleTargetStatusChange}
+                  style={{ padding: '8px', minWidth: '250px' }}
+                >
+                  <option value="">-- Select Target Status --</option>
+                  {progressStatuses.map((status) => ( // Using same list for now, can be different later
+                    <option key={status.Id} value={status.Id}>
+                      {status.Description} (ID: {status.Id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => console.log('Add mapping:', { erpId: selectedErpSystemId, source: sourceStatusId, target: targetStatusId })}
+                disabled={!sourceStatusId || !targetStatusId}
+                style={{ padding: '10px 15px', cursor: (!sourceStatusId || !targetStatusId) ? 'not-allowed' : 'pointer' }}
+              >
+                Add Mapping
+              </button>
             </div>
-        ) : (
-          <Card className="mt-4">
-            <Table>
-              <TableCaption>
-                {statusMappings.length === 0 ? "No status mappings found for this ERP system." : "Configured status mappings."}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>From Status (ERP)</TableHead>
-                  <TableHead>To Status (Portal)</TableHead>
-                  <TableHead>Created At</TableHead>
-                  <TableHead className="text-right w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {statusMappings.map((mapping) => (
-                  <TableRow key={mapping.id}>
-                    <TableCell className="font-medium">{mapping.van_status}</TableCell>
-                    <TableCell>{mapping.naar_status}</TableCell>
-                    <TableCell>{new Date(mapping.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => openEditDialog(mapping)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => openDeleteDialog(mapping)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        )
-      )}
-      {!selectedKlantId && !isLoadingErps && (
-        <div className="flex flex-col items-center justify-center h-64 border rounded-md bg-card mt-4">
-            <ListFilter className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg text-muted-foreground">Please select an ERP system to view its status mappings.</p>
+          )}
+          {!isLoadingProgressStatuses && !errorProgressStatuses && progressStatuses.length === 0 && selectedErpSystemId && (
+             <p>No progress statuses found for the selected ERP system, or unable to load them.</p>
+          )}
         </div>
       )}
-
-
-      {/* Edit Dialog */}
-      {selectedMapping && (
-        <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => { if(!isOpen) setSelectedMapping(null); setIsEditDialogOpen(isOpen);}}>
-          <DialogContent className="sm:max-w-[480px]">
-            <DialogHeader>
-              <DialogTitle>Edit Status Mapping</DialogTitle>
-            </DialogHeader>
-            <StatusMappingForm
-              onSubmit={handleEditSubmit}
-              defaultValues={selectedMapping}
-              isLoading={isSubmitting}
-              isEditMode={true}
-            />
-          </DialogContent>
-        </Dialog>
+      {!selectedErpSystemId && !isLoadingErpSystems && !errorErpSystems && (
+        <p>Please select an ERP system to configure its status mappings.</p>
       )}
-
-      {/* Delete Confirmation Dialog */}
-      {selectedMapping && (
-         <AlertDialog open={isDeleteDialogOpen} onOpenChange={(isOpen) => { if(!isOpen) setSelectedMapping(null); setIsDeleteDialogOpen(isOpen);}}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the status mapping
-                (&quot;{selectedMapping.van_status}&quot; to &quot;{selectedMapping.naar_status}&quot;).
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm} disabled={isSubmitting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                {isSubmitting ? "Deleting..." : "Yes, delete mapping"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </AdminPageLayout>
+    </div>
   );
 }
