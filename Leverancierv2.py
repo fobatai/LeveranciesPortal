@@ -632,9 +632,7 @@ def login_page():
     
     # Center the ultra-modern login form
     col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        
+    with col2:        
         st.markdown("""
         <div style="text-align: center; margin-bottom: 2rem;">
             <h2 style="color: white; font-weight: 600; font-size: 1.8rem; margin-bottom: 0.5rem;">
@@ -793,8 +791,6 @@ def login_page():
                             🆕 Nieuwe demo code: {demo_code}
                         </div>
                         """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
     # Admin login in a cooler expandable section
     st.markdown("<br><br>", unsafe_allow_html=True)
