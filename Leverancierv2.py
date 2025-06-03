@@ -20,266 +20,602 @@ load_dotenv()
 # Add pandas options to avoid SettingWithCopyWarning
 pd.options.mode.copy_on_write = True
 
-# Modern CSS styling
+# Ultra-Modern CSS styling
 def load_css():
     st.markdown("""
     <style>
     /* Import modern fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
     
-    /* Global styling */
+    /* Global styling with animated background */
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        font-family: 'Inter', sans-serif;
+        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+        font-family: 'Poppins', sans-serif;
+        min-height: 100vh;
+    }
+    
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* Floating elements animation */
+    .floating-shapes {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: -1;
+    }
+    
+    .shape {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 50%;
+        animation: float 20s infinite linear;
+    }
+    
+    .shape:nth-child(1) {
+        width: 80px;
+        height: 80px;
+        top: 20%;
+        left: 10%;
+        animation-delay: 0s;
+    }
+    
+    .shape:nth-child(2) {
+        width: 120px;
+        height: 120px;
+        top: 70%;
+        left: 80%;
+        animation-delay: -5s;
+    }
+    
+    .shape:nth-child(3) {
+        width: 60px;
+        height: 60px;
+        top: 40%;
+        left: 85%;
+        animation-delay: -10s;
+    }
+    
+    @keyframes float {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(180deg); }
+        100% { transform: translateY(0px) rotate(360deg); }
     }
     
     /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    .stDeployButton {visibility: hidden;}
     
     /* Main content area */
     .main .block-container {
-        padding-top: 2rem;
+        padding-top: 1rem;
         padding-bottom: 2rem;
         max-width: 1200px;
     }
     
-    /* Modern card styling */
+    /* Ultra-modern card styling */
     .modern-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 2rem;
-        margin: 1rem 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border-radius: 30px;
+        padding: 2.5rem;
+        margin: 1.5rem 0;
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .modern-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: 0.5s;
+    }
+    
+    .modern-card:hover::before {
+        left: 100%;
     }
     
     .modern-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
     }
     
-    /* Header styling */
+    /* Epic header styling */
     .main-header {
         text-align: center;
         background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(15px);
-        border-radius: 25px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(30px);
+        border-radius: 40px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .main-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        animation: rotate 10s linear infinite;
+        pointer-events: none;
+    }
+    
+    @keyframes rotate {
+        100% { transform: rotate(360deg); }
     }
     
     .main-header h1 {
         color: white;
-        font-size: 3rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        text-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(45deg, #fff, #f0f0f0, #fff);
+        background-size: 200% 200%;
+        animation: textShine 3s ease-in-out infinite alternate;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        position: relative;
+        z-index: 1;
+    }
+    
+    @keyframes textShine {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 100% 50%; }
     }
     
     .main-header p {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 1.2rem;
-        font-weight: 300;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 1.3rem;
+        font-weight: 400;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
     
-    /* Button styling */
+    /* Next-level button styling */
     .stButton > button {
-        background: linear-gradient(45deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+        background-size: 200% 200%;
         color: white;
         border: none;
-        border-radius: 15px;
-        padding: 0.8rem 2rem;
+        border-radius: 25px;
+        padding: 1rem 2.5rem;
         font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        font-size: 1.1rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 
+            0 8px 25px rgba(102, 126, 234, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: 0.5s;
+    }
+    
+    .stButton > button:hover::before {
+        left: 100%;
     }
     
     .stButton > button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 
+            0 15px 35px rgba(102, 126, 234, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        background-position: 100% 0;
     }
     
-    /* Status badges */
+    .stButton > button:active {
+        transform: translateY(-2px) scale(1.02);
+    }
+    
+    /* Epic status badges */
     .status-badge {
         display: inline-block;
-        padding: 0.4rem 1rem;
-        border-radius: 20px;
+        padding: 0.6rem 1.5rem;
+        border-radius: 25px;
         font-size: 0.9rem;
         font-weight: 600;
         text-align: center;
-        margin: 0.2rem;
+        margin: 0.3rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+    
+    .status-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     }
     
     .status-in-progress {
-        background: linear-gradient(45deg, #ffd89b, #19547b);
+        background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
     }
     
     .status-completed {
-        background: linear-gradient(45deg, #a8edea, #fed6e3);
-        color: #333;
-    }
-    
-    .status-new {
-        background: linear-gradient(45deg, #d299c2, #fef9d7);
-        color: #333;
-    }
-    
-    /* Metric cards */
-    .metric-card {
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 15px;
-        padding: 1.5rem;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        backdrop-filter: blur(10px);
-        margin: 0.5rem;
-    }
-    
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    .metric-label {
-        color: #666;
-        font-weight: 500;
-        margin-top: 0.5rem;
-    }
-    
-    /* Form styling */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div > select {
-        border-radius: 12px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        font-family: 'Inter', sans-serif;
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(15px);
-    }
-    
-    /* Success/Error messages */
-    .stSuccess, .stError, .stWarning, .stInfo {
-        border-radius: 12px;
-        backdrop-filter: blur(10px);
-    }
-    
-    /* Job card specific styling */
-    .job-card {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
-        border-radius: 20px;
-        padding: 2rem;
-        margin: 1rem 0;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        backdrop-filter: blur(15px);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Sync status indicator */
-    .sync-indicator {
-        display: flex;
-        align-items: center;
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 25px;
-        padding: 1rem;
-        margin: 1rem 0;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    
-    .sync-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 0.8rem;
-        animation: pulse 2s infinite;
-    }
-    
-    .sync-active {
-        background: #4CAF50;
-    }
-    
-    .sync-inactive {
-        background: #FFC107;
-    }
-    
-    @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-    }
-    
-    /* Login form styling */
-    .login-container {
-        max-width: 400px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(15px);
-        border-radius: 25px;
-        padding: 3rem;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 15px;
-        padding: 0.5rem;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        color: rgba(255, 255, 255, 0.8);
-        background: transparent;
-        border: none;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: rgba(255, 255, 255, 0.2);
+        background: linear-gradient(135deg, #11998e, #38ef7d);
         color: white;
     }
     
-    /* Footer */
-    .modern-footer {
-        text-align: center;
-        color: rgba(255, 255, 255, 0.7);
-        margin-top: 3rem;
-        padding: 2rem;
-        font-weight: 300;
+    .status-new {
+        background: linear-gradient(135deg, #fc466b, #3f5efb);
+        color: white;
     }
     
-    /* Loading spinner */
+    /* Futuristic metric cards */
+    .metric-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border-radius: 25px;
+        padding: 2rem;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        margin: 0.5rem;
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: 0.5s;
+    }
+    
+    .metric-card:hover::before {
+        left: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 
+            0 15px 40px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    
+    .metric-value {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, #f0f0f0, #fff);
+        background-size: 200% 200%;
+        animation: textShine 2s ease-in-out infinite alternate;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+    }
+    
+    .metric-label {
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+        margin-top: 0.8rem;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Next-gen form styling */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {
+        border-radius: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        font-family: 'Poppins', sans-serif;
+        font-size: 1rem;
+        color: white;
+        padding: 1rem 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 
+            0 4px 15px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div > select:focus {
+        border-color: rgba(255, 255, 255, 0.6);
+        box-shadow: 
+            0 8px 25px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3),
+            0 0 0 3px rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .stTextInput > div > div > input::placeholder,
+    .stTextArea > div > div > textarea::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+    }
+    
+    /* Ultra-modern sidebar styling */
+    .css-1d391kg {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(30px);
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Enhanced messages */
+    .stSuccess, .stError, .stWarning, .stInfo {
+        border-radius: 20px;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Epic job card styling */
+    .job-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+        border-radius: 30px;
+        padding: 2.5rem;
+        margin: 1.5rem 0;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(25px);
+        box-shadow: 
+            0 15px 50px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .job-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: 0.8s;
+    }
+    
+    .job-card:hover::before {
+        left: 100%;
+    }
+    
+    .job-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 
+            0 25px 60px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Mind-blowing sync indicator */
+    .sync-indicator {
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(25px);
+        border-radius: 30px;
+        padding: 1.5rem 2rem;
+        margin: 1.5rem 0;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 
+            0 10px 40px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .sync-indicator:hover {
+        transform: translateY(-3px);
+        box-shadow: 
+            0 15px 50px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    
+    .sync-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-right: 1rem;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .sync-active {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        animation: pulse 2s infinite, glow 2s infinite;
+    }
+    
+    .sync-inactive {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        animation: pulse 3s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { 
+            opacity: 1; 
+            transform: scale(1);
+        }
+        50% { 
+            opacity: 0.7; 
+            transform: scale(1.1);
+        }
+        100% { 
+            opacity: 1; 
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes glow {
+        0% { box-shadow: 0 0 20px rgba(17, 153, 142, 0.5); }
+        50% { box-shadow: 0 0 30px rgba(17, 153, 142, 0.8), 0 0 40px rgba(17, 153, 142, 0.3); }
+        100% { box-shadow: 0 0 20px rgba(17, 153, 142, 0.5); }
+    }
+    
+    /* Revolutionary login container */
+    .login-container {
+        max-width: 450px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(30px);
+        border-radius: 40px;
+        padding: 4rem 3rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 
+            0 25px 60px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s ease;
+    }
+    
+    .login-container::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
+        background-size: 400% 400%;
+        animation: gradientBorder 3s ease infinite;
+        border-radius: 40px;
+        z-index: -1;
+    }
+    
+    @keyframes gradientBorder {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .login-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 
+            0 35px 80px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Spectacular tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 5px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        padding: 0.8rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 15px;
+        color: rgba(255, 255, 255, 0.8);
+        background: transparent;
+        border: none;
+        padding: 1rem 2rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Epic footer */
+    .modern-footer {
+        text-align: center;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 4rem;
+        padding: 2rem;
+        font-weight: 400;
+        font-size: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border-radius: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Next-level loading spinner */
     .loading-spinner {
-        border: 4px solid rgba(255, 255, 255, 0.3);
+        border: 4px solid rgba(255, 255, 255, 0.2);
         border-radius: 50%;
         border-top: 4px solid #667eea;
-        width: 40px;
-        height: 40px;
-        animation: spin 2s linear infinite;
+        border-right: 4px solid #764ba2;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite, colorShift 3s ease infinite;
         margin: 0 auto;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
     }
     
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes colorShift {
+        0% { filter: hue-rotate(0deg); }
+        100% { filter: hue-rotate(360deg); }
+    }
+    
+    /* Label styling */
+    .stTextInput > label,
+    .stTextArea > label,
+    .stSelectbox > label {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 500 !important;
+        font-size: 1rem !important;
+        margin-bottom: 0.5rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -851,9 +1187,18 @@ def display_sync_status():
         else:
             st.warning(f"Synchronisatie kon niet worden gestart: {message}")
 
-# MODERN LOGIN PAGE
+# ULTRA-MODERN LOGIN PAGE
 def login_page():
-    # Modern header
+    # Add floating shapes for visual interest
+    st.markdown("""
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Epic header with animations
     st.markdown("""
     <div class="main-header">
         <h1>🔧 Leveranciers Portal</h1>
@@ -861,12 +1206,21 @@ def login_page():
     </div>
     """, unsafe_allow_html=True)
     
-    # Center the login form
+    # Center the ultra-modern login form
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
         
-        st.markdown("### 🔐 Monteur Toegang")
+        st.markdown("""
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h2 style="color: white; font-weight: 600; font-size: 1.8rem; margin-bottom: 0.5rem;">
+                🔐 Monteur Toegang
+            </h2>
+            <p style="color: rgba(255, 255, 255, 0.8); font-size: 1rem;">
+                Veiliger inloggen met verificatiecode
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
         if "email" not in st.session_state:
             st.session_state["email"] = ""
@@ -875,21 +1229,60 @@ def login_page():
             st.session_state["code_sent"] = False
         
         if not st.session_state["code_sent"]:
-            with st.form("email_form"):
-                st.markdown("**Voer uw e-mailadres in voor toegang:**")
-                email = st.text_input("E-mailadres", placeholder="uw@email.nl", key="login_email")
-                send_code_button = st.form_submit_button("✉️ Verificatiecode Versturen", use_container_width=True)
+            with st.form("email_form", clear_on_submit=False):
+                st.markdown("""
+                <p style="color: rgba(255, 255, 255, 0.9); font-weight: 500; margin-bottom: 1rem;">
+                    ✉️ Voer uw e-mailadres in voor toegang:
+                </p>
+                """, unsafe_allow_html=True)
+                
+                email = st.text_input(
+                    "E-mailadres", 
+                    placeholder="uw@email.nl", 
+                    key="login_email",
+                    label_visibility="collapsed"
+                )
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                send_code_button = st.form_submit_button(
+                    "🚀 Verificatiecode Versturen", 
+                    use_container_width=True
+                )
             
             if send_code_button and email:
-                with st.spinner("E-mailadres wordt gecontroleerd..."):
+                with st.spinner("🔍 E-mailadres wordt gecontroleerd..."):
+                    time.sleep(1)  # Visual feedback
                     is_valid = check_email_exists(email)
                     if is_valid:
                         if generate_login_code(email):
                             st.session_state["email"] = email
                             st.session_state["code_sent"] = True
                             st.success("✅ Verificatiecode verstuurd!")
-                            st.info(f"🔑 Demo code: **{st.session_state.get('last_code', '')}**")
-                            time.sleep(1)
+                            
+                            # Show demo code with nice styling
+                            demo_code = st.session_state.get('last_code', '')
+                            st.markdown(f"""
+                            <div style="
+                                background: linear-gradient(135deg, #667eea, #764ba2);
+                                border-radius: 20px;
+                                padding: 1.5rem;
+                                margin: 1rem 0;
+                                text-align: center;
+                                border: 2px solid rgba(255, 255, 255, 0.3);
+                                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+                            ">
+                                <h3 style="color: white; margin: 0; font-size: 1.2rem;">🔑 Demo Code</h3>
+                                <p style="color: white; font-size: 2rem; font-weight: 800; 
+                                   letter-spacing: 3px; margin: 0.5rem 0; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                                   {demo_code}
+                                </p>
+                                <small style="color: rgba(255, 255, 255, 0.8);">
+                                    In productie wordt dit per e-mail verzonden
+                                </small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            time.sleep(2)
                             st.rerun()
                         else:
                             st.error("❌ Versturen van code mislukt")
@@ -898,63 +1291,129 @@ def login_page():
         
         else:
             email = st.session_state["email"]
-            st.info(f"📧 Code verstuurd naar **{email}**")
+            st.markdown(f"""
+            <div style="
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 15px;
+                padding: 1.5rem;
+                margin: 1rem 0;
+                text-align: center;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            ">
+                <p style="color: rgba(255, 255, 255, 0.9); margin: 0;">
+                    📧 Code verstuurd naar <strong>{email}</strong>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
             
             last_code = st.session_state.get("last_code", "")
             
-            with st.form("code_form"):
-                st.markdown("**Voer de ontvangen code in:**")
-                code = st.text_input("Verificatiecode", value=last_code, key="login_code")
+            with st.form("code_form", clear_on_submit=False):
+                st.markdown("""
+                <p style="color: rgba(255, 255, 255, 0.9); font-weight: 500; margin-bottom: 1rem;">
+                    🔐 Voer de ontvangen code in:
+                </p>
+                """, unsafe_allow_html=True)
+                
+                code = st.text_input(
+                    "Verificatiecode", 
+                    value=last_code, 
+                    key="login_code",
+                    label_visibility="collapsed"
+                )
+                
+                st.markdown("<br>", unsafe_allow_html=True)
                 
                 col1, col2 = st.columns(2)
                 with col1:
                     back_button = st.form_submit_button("⬅️ Terug", use_container_width=True)
                 with col2:
-                    submit_button = st.form_submit_button("🔓 Inloggen", use_container_width=True)
+                    submit_button = st.form_submit_button("🎯 Inloggen", use_container_width=True)
             
             if back_button:
                 st.session_state["code_sent"] = False
                 st.rerun()
                 
             if submit_button and code:
-                with st.spinner("Code wordt gecontroleerd..."):
+                with st.spinner("🔐 Code wordt geverifieerd..."):
+                    time.sleep(1)  # Visual feedback
                     if verify_login_code(email, code):
                         st.session_state["logged_in"] = True
                         st.session_state["user_email"] = email
-                        st.success("✅ Succesvol ingelogd!")
-                        time.sleep(1)
+                        st.success("🎉 Succesvol ingelogd!")
+                        st.balloons()
+                        time.sleep(2)
                         st.rerun()
                     else:
                         st.error("❌ Ongeldige of verlopen code")
             
-            if st.button("🔄 Nieuwe code versturen"):
-                if generate_login_code(email):
-                    st.success("✅ Nieuwe code verstuurd!")
-                    st.info(f"🔑 Demo code: **{st.session_state.get('last_code', '')}**")
+            # Resend button with cool styling
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🔄 Nieuwe code versturen", key="resend_code"):
+                with st.spinner("📨 Nieuwe code wordt verstuurd..."):
+                    time.sleep(1)
+                    if generate_login_code(email):
+                        st.success("✅ Nieuwe code verstuurd!")
+                        # Show new demo code
+                        demo_code = st.session_state.get('last_code', '')
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, #11998e, #38ef7d);
+                            border-radius: 15px;
+                            padding: 1rem;
+                            margin: 1rem 0;
+                            text-align: center;
+                            color: white;
+                            font-weight: 600;
+                            font-size: 1.1rem;
+                        ">
+                            🆕 Nieuwe demo code: {demo_code}
+                        </div>
+                        """, unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Admin login in expandable section
-    with st.expander("⚙️ Beheerder Toegang"):
+    # Admin login in a cooler expandable section
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    with st.expander("⚙️ Beheerder Toegang", expanded=False):
+        st.markdown("""
+        <div style="
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        ">
+        """, unsafe_allow_html=True)
+        
         with st.form("admin_login_form"):
+            st.markdown("**Admin Gegevens:**")
             admin_email = st.text_input("Admin E-mail", value="admin@example.com")
-            admin_code = st.text_input("Admin Code", value="DEMO")
-            admin_login = st.form_submit_button("🔑 Admin Inloggen")
+            admin_code = st.text_input("Admin Code", value="DEMO", type="password")
+            admin_login = st.form_submit_button("🔑 Admin Inloggen", use_container_width=True)
         
         if admin_login and admin_email and admin_code:
             if admin_email == "admin@example.com":
                 st.session_state["logged_in"] = True
                 st.session_state["user_email"] = admin_email
-                st.success("✅ Admin toegang verleend!")
-                time.sleep(1)
+                st.success("🎖️ Admin toegang verleend!")
+                st.balloons()
+                time.sleep(2)
                 st.rerun()
             else:
                 st.error("❌ Ongeldige admin gegevens")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
-    # Modern footer
+    # Epic footer
     st.markdown("""
     <div class="modern-footer">
+        <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">✨</div>
         © 2025 Leveranciers Portal - Een product van <strong>Pontifexx</strong>
+        <div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">
+            Gemaakt met ❤️ en moderne technologie
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
