@@ -928,44 +928,44 @@ def supplier_page():
             mappings = c.fetchall()
             customer_mappings[klant_id] = {van_status: naar_status for van_status, naar_status in mappings}
         
-        # Display statistics
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-        total_jobs = sum(len(jobs) for jobs in jobs_by_customer.values())
-        processable_count = 0
-        for klant_id, jobs_list in jobs_by_customer.items():
-            for job in jobs_list:
-                if job["voortgang_status"] in customer_mappings.get(klant_id, {}):
-                    processable_count += 1
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_jobs}</div>
-                <div class="metric-label">Totaal Werkorders</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{processable_count}</div>
-                <div class="metric-label">Te Verwerken</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{len(jobs_by_customer)}</div>
-                <div class="metric-label">Klanten</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Display customer tabs
-        if len(jobs_by_customer) > 0:
+        # Display statistics - ONLY if we have jobs
+        if jobs_by_customer:
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+            total_jobs = sum(len(jobs) for jobs in jobs_by_customer.values())
+            processable_count = 0
+            for klant_id, jobs_list in jobs_by_customer.items():
+                for job in jobs_list:
+                    if job["voortgang_status"] in customer_mappings.get(klant_id, {}):
+                        processable_count += 1
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{total_jobs}</div>
+                    <div class="metric-label">Totaal Werkorders</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{processable_count}</div>
+                    <div class="metric-label">Te Verwerken</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{len(jobs_by_customer)}</div>
+                    <div class="metric-label">Klanten</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Display customer tabs
             customer_tabs = st.tabs([f"🏢 {jobs_by_customer[klant_id][0]['klant_naam']} ({len(jobs_by_customer[klant_id])})" 
                                     for klant_id in jobs_by_customer.keys()])
             
