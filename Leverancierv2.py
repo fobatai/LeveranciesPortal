@@ -519,38 +519,38 @@ def load_css():
     </style>
     """, unsafe_allow_html=True)
     
-    /* Epic status badges */
+    /* Professional status badges */
     .status-badge {
         display: inline-block;
-        padding: 0.6rem 1.5rem;
-        border-radius: 25px;
-        font-size: 0.9rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
         font-weight: 600;
         text-align: center;
-        margin: 0.3rem;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        margin: 0.2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         border: 1px solid rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(10px);
         transition: all 0.3s ease;
     }
     
     .status-badge:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     
     .status-in-progress {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #3182ce, #4299e1);
         color: white;
     }
     
     .status-completed {
-        background: linear-gradient(135deg, #11998e, #38ef7d);
+        background: linear-gradient(135deg, #38a169, #48bb78);
         color: white;
     }
     
     .status-new {
-        background: linear-gradient(135deg, #fc466b, #3f5efb);
+        background: linear-gradient(135deg, #805ad5, #9f7aea);
         color: white;
     }
     
