@@ -631,7 +631,7 @@ st.set_page_config(
 # Load modern CSS
 load_css()
 
-# Database setup (unchanged from original)
+# Database setup with migration support
 def init_db():
     conn = sqlite3.connect('leveranciers_portal.db')
     c = conn.cursor()
@@ -693,21 +693,35 @@ def init_db():
     )
     ''')
     
-    # Maak sync control tabel
+    # Maak sync control tabel (backwards compatible)
     c.execute('''
     CREATE TABLE IF NOT EXISTS sync_control (
         id INTEGER PRIMARY KEY,
         force_sync BOOLEAN NOT NULL DEFAULT 0,
         last_sync TEXT,
-        sync_interval INTEGER NOT NULL DEFAULT 3600,
-        sync_in_progress BOOLEAN NOT NULL DEFAULT 0
+        sync_interval INTEGER NOT NULL DEFAULT 3600
     )
     ''')
+    
+    # Database migration: Add sync_in_progress column if it doesn't exist
+    try:
+        c.execute("SELECT sync_in_progress FROM sync_control LIMIT 1")
+    except sqlite3.OperationalError:
+        # Column doesn't exist, add it
+        print("Adding sync_in_progress column to sync_control table...")
+        c.execute("ALTER TABLE sync_control ADD COLUMN sync_in_progress BOOLEAN NOT NULL DEFAULT 0")
     
     # Voeg standaard sync instellingen toe als ze nog niet bestaan
     c.execute("SELECT COUNT(*) FROM sync_control")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO sync_control (id, force_sync, last_sync, sync_interval, sync_in_progress) VALUES (1, 0, NULL, 3600, 0)")
+    else:
+        # Update existing record to have sync_in_progress if it's missing
+        try:
+            c.execute("UPDATE sync_control SET sync_in_progress = 0 WHERE id = 1 AND sync_in_progress IS NULL")
+        except sqlite3.OperationalError:
+            # Column might still not exist in some edge cases
+            pass
     
     conn.commit()
     conn.close()
@@ -1720,7 +1734,7 @@ def display_customer_jobs_modern(klant_id, jobs, mappings, jobs_data):
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODERN ADMIN PAGE (simplified for space)
+# MODERN ADMIN PAGE - Fully functional
 def admin_page():
     st.markdown("""
     <div class="main-header">
@@ -1735,25 +1749,608 @@ def admin_page():
     display_sync_status()
     st.markdown('</div>', unsafe_allow_html=True)
     
-    tabs = st.tabs(["🏢 Klanten", "🔄 Status Mapping", "👥 Toegang"])
+    tabs = st.tabs(["🏢 Klanten", "🔄 Status Mapping", "👥 Toegang", "⚙️ Sync Instellingen"])
     
     with tabs[0]:
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-        st.markdown("### Klanten Beheren")
-        st.info("Klantenbeheer functionaliteit - geïmplementeerd zoals origineel")
-        st.markdown('</div>', unsafe_allow_html=True)
+        manage_customers_modern()
     
     with tabs[1]:
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-        st.markdown("### Status Toewijzingen")
-        st.info("Status mapping functionaliteit - geïmplementeerd zoals origineel")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
+        manage_progress_status_mappings_modern()
+        
     with tabs[2]:
+        manage_supplier_access_modern()
+        
+    with tabs[3]:
+        manage_sync_settings_modern()
+
+def manage_customers_modern():
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+    st.markdown("### 🏢 Klanten Beheren")
+    
+    # Formulier voor het toevoegen van een nieuwe klant
+    with st.form("add_customer_form"):
+        st.markdown("#### ➕ Nieuwe Klant Toevoegen")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            naam = st.text_input("Klantnaam", placeholder="Bijv. Acme Corp")
+            domein = st.text_input("Domein", placeholder="025105.ultimo-demo.net")
+        with col2:
+            api_key = st.text_input("API Sleutel", type="password", placeholder="Voer API key in")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            test_button = st.form_submit_button("🔍 Test Verbinding", use_container_width=True)
+        with col2:
+            submit_button = st.form_submit_button("✅ Klant Toevoegen", use_container_width=True)
+    
+    if test_button and domein and api_key:
+        with st.spinner("🔍 API-verbinding wordt getest..."):
+            is_valid, message = test_api_connection(domein, api_key)
+            if is_valid:
+                st.success(f"✅ API-verbindingstest geslaagd!")
+                st.info("De API-verbinding werkt correct. U kunt de klant veilig toevoegen.")
+            else:
+                st.error(f"❌ API-verbindingstest mislukt: {message}")
+    
+    if submit_button and naam and domein and api_key:
+        with st.spinner("💾 Klant wordt toegevoegd..."):
+            try:
+                conn = sqlite3.connect('leveranciers_portal.db')
+                c = conn.cursor()
+                c.execute("INSERT INTO klanten (naam, domein, api_key) VALUES (?, ?, ?)",
+                          (naam, domein, api_key))
+                conn.commit()
+                conn.close()
+                st.success(f"🎉 Klant **{naam}** succesvol toegevoegd!")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Fout bij toevoegen klant: {str(e)}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Toon bestaande klanten
+    display_customers_modern()
+
+def display_customers_modern():
+    conn = sqlite3.connect('leveranciers_portal.db')
+    
+    try:
+        df = pd.read_sql_query("SELECT id, naam, domein FROM klanten", conn)
+        
+        # Haal ook API keys op voor testing
+        c = conn.cursor()
+        c.execute("SELECT id, naam, domein, api_key FROM klanten")
+        klanten = c.fetchall()
+    except Exception as e:
+        st.error(f"Database fout: {str(e)}")
+        return
+    finally:
+        conn.close()
+    
+    if not df.empty:
         st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-        st.markdown("### Leveranciers Toegang")
-        st.info("Toegangsbeheer functionaliteit - geïmplementeerd zoals origineel")
+        st.markdown("### 📊 Bestaande Klanten")
+        
+        # Mooie tabel weergave
+        st.dataframe(
+            df, 
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "id": st.column_config.NumberColumn("ID", width="small"),
+                "naam": st.column_config.TextColumn("Klant Naam", width="medium"),
+                "domein": st.column_config.TextColumn("Domein", width="large"),
+            }
+        )
+        
+        if klanten:
+            st.markdown("#### 🔧 Klant Beheer")
+            
+            klant_id = st.selectbox(
+                "Selecteer klant voor beheer:", 
+                [c[0] for c in klanten], 
+                format_func=lambda x: next((f"{c[1]} ({c[2]})" for c in klanten if c[0] == x), ""),
+                key="customer_management_select"
+            )
+            
+            selected_customer = next((c for c in klanten if c[0] == klant_id), None)
+            
+            if selected_customer:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("🔍 Test API Verbinding", use_container_width=True, key="test_selected_customer"):
+                        domein = selected_customer[2]
+                        api_key = selected_customer[3]
+                        
+                        with st.spinner("🔍 API wordt getest..."):
+                            is_valid, message = test_api_connection(domein, api_key)
+                            if is_valid:
+                                st.success(f"✅ API-verbinding met **{selected_customer[1]}** werkt perfect!")
+                            else:
+                                st.error(f"❌ API-verbinding mislukt: {message}")
+                
+                with col2:
+                    if st.button("🗑️ Verwijder Klant", use_container_width=True, key="delete_selected_customer", type="secondary"):
+                        # Confirmation dialog simulation
+                        if st.button(f"⚠️ BEVESTIG: Verwijder {selected_customer[1]}", key="confirm_delete", type="secondary"):
+                            with st.spinner("🗑️ Klant wordt verwijderd..."):
+                                try:
+                                    conn = sqlite3.connect('leveranciers_portal.db')
+                                    c = conn.cursor()
+                                    c.execute("DELETE FROM status_toewijzingen WHERE klant_id = ?", (klant_id,))
+                                    c.execute("DELETE FROM jobs_cache WHERE klant_id = ?", (klant_id,))
+                                    c.execute("DELETE FROM klanten WHERE id = ?", (klant_id,))
+                                    conn.commit()
+                                    conn.close()
+                                    st.success(f"🗑️ Klant **{selected_customer[1]}** succesvol verwijderd!")
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Fout bij verwijderen: {str(e)}")
+        
         st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem;">
+            <h3>📭 Nog geen klanten</h3>
+            <p>Voeg uw eerste klant toe om te beginnen.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+def manage_progress_status_mappings_modern():
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+    st.markdown("### 🔄 Status Toewijzingen Beheren")
+    
+    conn = sqlite3.connect('leveranciers_portal.db')
+    klanten_df = pd.read_sql_query("SELECT id, naam, domein, api_key FROM klanten", conn)
+    conn.close()
+    
+    if klanten_df.empty:
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem;">
+            <h4>⚠️ Geen klanten gevonden</h4>
+            <p>Voeg eerst klanten toe voordat u status toewijzingen kunt configureren.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+    
+    klant_id = st.selectbox(
+        "🏢 Selecteer Klant:", 
+        klanten_df["id"].tolist(), 
+        format_func=lambda x: klanten_df[klanten_df["id"] == x]["naam"].iloc[0],
+        key="status_mapping_customer_select"
+    )
+    
+    klant_row = klanten_df[klanten_df["id"] == klant_id].iloc[0]
+    domein = klant_row["domein"]
+    api_key = klant_row["api_key"]
+    
+    # Haal voortgangsstatussen op van API
+    with st.spinner("📊 Voortgangsstatussen worden opgehaald..."):
+        voortgang_statussen = get_progress_statuses(domein, api_key)
+    
+    if not voortgang_statussen:
+        st.warning("⚠️ Kan voortgangsstatussen niet ophalen. Controleer de API-verbinding.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+    
+    status_options = {status["Id"]: f"{status['Id']}: {status['Description']}" for status in voortgang_statussen}
+    
+    # Formulier voor het toevoegen van een nieuwe toewijzing
+    with st.form("add_mapping_form"):
+        st.markdown("#### ➕ Nieuwe Status Toewijzing")
+        st.info("📋 Definieer welke status overgangen leveranciers kunnen uitvoeren")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            van_status = st.selectbox(
+                "🔄 Van Status:", 
+                list(status_options.keys()), 
+                format_func=lambda x: status_options[x],
+                key="van_status_select"
+            )
+        with col2:
+            naar_status = st.selectbox(
+                "✅ Naar Status:", 
+                list(status_options.keys()), 
+                format_func=lambda x: status_options[x],
+                key="naar_status_select"
+            )
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        submit_button = st.form_submit_button("✅ Toewijzing Toevoegen", use_container_width=True)
+    
+    if submit_button:
+        with st.spinner("💾 Toewijzing wordt toegevoegd..."):
+            conn = sqlite3.connect('leveranciers_portal.db')
+            c = conn.cursor()
+            
+            # Controleer of toewijzing al bestaat
+            c.execute("""
+            SELECT COUNT(*) FROM status_toewijzingen 
+            WHERE klant_id = ? AND van_status = ?
+            """, (klant_id, van_status))
+            
+            count = c.fetchone()[0]
+            
+            if count > 0:
+                st.error(f"❌ Er bestaat al een toewijzing voor **Van Status: {van_status}** voor deze klant.")
+            else:
+                c.execute("""
+                INSERT INTO status_toewijzingen (klant_id, van_status, naar_status)
+                VALUES (?, ?, ?)
+                """, (klant_id, van_status, naar_status))
+                conn.commit()
+                st.success("🎉 Toewijzing succesvol toegevoegd!")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+            
+            conn.close()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Toon bestaande toewijzingen
+    display_status_mappings_modern(klant_id, status_options)
+
+def display_status_mappings_modern(klant_id, status_options):
+    conn = sqlite3.connect('leveranciers_portal.db')
+    toewijzingen_df = pd.read_sql_query("""
+    SELECT id, van_status, naar_status FROM status_toewijzingen
+    WHERE klant_id = ?
+    """, conn, params=(klant_id,))
+    conn.close()
+    
+    if not toewijzingen_df.empty:
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+        st.markdown("### 📋 Bestaande Toewijzingen")
+        
+        # Voeg statusbeschrijvingen toe aan het dataframe
+        toewijzingen_df["Van Status"] = toewijzingen_df["van_status"].apply(lambda x: status_options.get(x, x))
+        toewijzingen_df["Naar Status"] = toewijzingen_df["naar_status"].apply(lambda x: status_options.get(x, x))
+        
+        # Mooie tabel weergave
+        display_df = toewijzingen_df[["id", "Van Status", "Naar Status"]].copy()
+        display_df.columns = ["ID", "Van Status", "Naar Status"]
+        
+        st.dataframe(
+            display_df, 
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn("ID", width="small"),
+                "Van Status": st.column_config.TextColumn("Van Status", width="large"),
+                "Naar Status": st.column_config.TextColumn("Naar Status", width="large"),
+            }
+        )
+        
+        # Optie om toewijzing te verwijderen
+        st.markdown("#### 🗑️ Toewijzing Verwijderen")
+        toewijzing_id = st.selectbox(
+            "Selecteer toewijzing om te verwijderen:", 
+            toewijzingen_df["id"].tolist(),
+            format_func=lambda x: f"ID {x}: {toewijzingen_df[toewijzingen_df['id']==x]['Van Status'].iloc[0]} → {toewijzingen_df[toewijzingen_df['id']==x]['Naar Status'].iloc[0]}",
+            key="delete_mapping_select"
+        )
+        
+        if st.button("🗑️ Verwijder Geselecteerde Toewijzing", use_container_width=True, key="delete_mapping_btn"):
+            with st.spinner("🗑️ Toewijzing wordt verwijderd..."):
+                conn = sqlite3.connect('leveranciers_portal.db')
+                c = conn.cursor()
+                c.execute("DELETE FROM status_toewijzingen WHERE id = ?", (toewijzing_id,))
+                conn.commit()
+                conn.close()
+                st.success("🗑️ Toewijzing succesvol verwijderd!")
+                time.sleep(1)
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem;">
+            <h4>📭 Nog geen toewijzingen</h4>
+            <p>Voeg status toewijzingen toe om leveranciers workflow te configureren.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+def manage_supplier_access_modern():
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+    st.markdown("### 👥 Leveranciers Toegang Beheren")
+    
+    # Haal alle klanten op voor filtering
+    conn = sqlite3.connect('leveranciers_portal.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT id, naam FROM klanten")
+    klanten = c.fetchall()
+    
+    if not klanten:
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem;">
+            <h4>⚠️ Geen klanten gevonden</h4>
+            <p>Voeg eerst klanten toe om leveranciers toegang te kunnen beheren.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        conn.close()
+        return
+    
+    klant_options = {klant_id: naam for klant_id, naam in klanten}
+    klant_options[0] = "Alle Klanten"
+    
+    selected_customer = st.selectbox(
+        "🏢 Filter op Klant:", 
+        list(klant_options.keys()),
+        format_func=lambda x: klant_options[x],
+        key="supplier_access_filter"
+    )
+    
+    # Query om e-mails uit jobgegevens te halen
+    if selected_customer == 0:
+        query = """
+        SELECT jc.id, jc.omschrijving, k.naam as klant_naam, 
+               json_extract(jc.data, '$.Vendor.ObjectContacts') as contacts,
+               jc.data
+        FROM jobs_cache jc
+        JOIN klanten k ON jc.klant_id = k.id
+        """
+        c.execute(query)
+    else:
+        query = """
+        SELECT jc.id, jc.omschrijving, k.naam as klant_naam, 
+               json_extract(jc.data, '$.Vendor.ObjectContacts') as contacts,
+               jc.data
+        FROM jobs_cache jc
+        JOIN klanten k ON jc.klant_id = k.id
+        WHERE jc.klant_id = ?
+        """
+        c.execute(query, (selected_customer,))
+    
+    jobs = c.fetchall()
+    conn.close()
+    
+    # Verwerk de jobs om e-mails te extraheren
+    emails = {}
+    for job in jobs:
+        job_id, omschrijving, klant_naam, contacts_json, data_json = job
+        
+        try:
+            data = json.loads(data_json)
+            
+            if 'Vendor' in data and data['Vendor'] is not None and 'ObjectContacts' in data['Vendor']:
+                for contact in data['Vendor']['ObjectContacts']:
+                    if 'Employee' in contact and contact['Employee'] is not None:
+                        employee = contact['Employee']
+                        if 'EmailAddress' in employee and employee['EmailAddress']:
+                            email = employee['EmailAddress']
+                            name = employee.get('Description', '')
+                            vendor_id = data['Vendor'].get('Id', '')
+                            vendor_name = data['Vendor'].get('Description', '')
+                            
+                            if email not in emails:
+                                emails[email] = {
+                                    'name': name,
+                                    'vendor_id': vendor_id,
+                                    'vendor_name': vendor_name,
+                                    'jobs': [],
+                                    'klant_naam': klant_naam
+                                }
+                            
+                            job_info = {'id': job_id, 'omschrijving': omschrijving, 'klant_naam': klant_naam}
+                            if job_info not in emails[email]['jobs']:
+                                emails[email]['jobs'].append(job_info)
+        except Exception as e:
+            print(f"Error processing job {job_id}: {str(e)}")
+            continue
+    
+    # Toon de e-mails
+    if emails:
+        st.success(f"✅ {len(emails)} leveranciers e-mails gevonden met toegang")
+        
+        # Maak een dataframe voor weergave
+        rows = []
+        for email, info in emails.items():
+            job_count = len(info['jobs'])
+            rows.append({
+                '📧 E-mail': email,
+                '👤 Naam': info['name'] or 'Niet opgegeven',
+                '🏢 Leverancier': f"{info['vendor_id']}: {info['vendor_name']}" if info['vendor_id'] else 'Onbekend',
+                '📊 Aantal Jobs': job_count
+            })
+        
+        df = pd.DataFrame(rows)
+        st.dataframe(
+            df, 
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "📧 E-mail": st.column_config.TextColumn("E-mail", width="large"),
+                "👤 Naam": st.column_config.TextColumn("Naam", width="medium"),
+                "🏢 Leverancier": st.column_config.TextColumn("Leverancier", width="large"),
+                "📊 Aantal Jobs": st.column_config.NumberColumn("Jobs", width="small"),
+            }
+        )
+        
+        # Toon details voor een geselecteerde e-mail
+        if rows:
+            email_options = [row['📧 E-mail'] for row in rows]
+            selected_email = st.selectbox(
+                "🔍 Bekijk Jobs voor E-mail:", 
+                email_options,
+                key="email_detail_select"
+            )
+            
+            if selected_email in emails:
+                st.markdown(f"#### 📋 Jobs voor **{selected_email}**")
+                info = emails[selected_email]
+                
+                if info['jobs']:
+                    job_rows = []
+                    for job in info['jobs']:
+                        job_rows.append({
+                            '🆔 Job ID': job['id'],
+                            '📝 Omschrijving': job['omschrijving'],
+                            '🏢 Klant': job['klant_naam']
+                        })
+                    
+                    job_df = pd.DataFrame(job_rows)
+                    st.dataframe(
+                        job_df, 
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "🆔 Job ID": st.column_config.TextColumn("Job ID", width="medium"),
+                            "📝 Omschrijving": st.column_config.TextColumn("Omschrijving", width="large"),
+                            "🏢 Klant": st.column_config.TextColumn("Klant", width="medium"),
+                        }
+                    )
+                else:
+                    st.info("📭 Geen jobs gevonden voor deze e-mail.")
+    else:
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem;">
+            <h4>📭 Geen leveranciers e-mails gevonden</h4>
+            <p>Zorg ervoor dat jobs correct zijn gesynchroniseerd en dat leveranciers contactgegevens bevatten.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def manage_sync_settings_modern():
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+    st.markdown("### ⚙️ Synchronisatie Instellingen")
+    
+    # Get current sync settings
+    sync_status = get_sync_status()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 📊 Huidige Status")
+        
+        if sync_status['last_sync'] and sync_status['last_sync'] != "Nooit":
+            try:
+                last_sync_dt = datetime.datetime.fromisoformat(sync_status['last_sync'])
+                formatted_time = last_sync_dt.strftime("%d-%m-%Y %H:%M:%S")
+                time_ago = datetime.datetime.now() - last_sync_dt
+                
+                if time_ago.total_seconds() < 60:
+                    time_ago_str = "zojuist"
+                elif time_ago.total_seconds() < 3600:
+                    minutes = int(time_ago.total_seconds() / 60)
+                    time_ago_str = f"{minutes} {'minuut' if minutes == 1 else 'minuten'} geleden"
+                elif time_ago.total_seconds() < 86400:
+                    hours = int(time_ago.total_seconds() / 3600)
+                    time_ago_str = f"{hours} {'uur' if hours == 1 else 'uren'} geleden"
+                else:
+                    days = int(time_ago.total_seconds() / 86400)
+                    time_ago_str = f"{days} {'dag' if days == 1 else 'dagen'} geleden"
+                
+                st.info(f"🕒 **Laatste sync:** {formatted_time} ({time_ago_str})")
+            except:
+                st.info(f"🕒 **Laatste sync:** {sync_status['last_sync']}")
+        else:
+            st.warning("⚠️ **Laatste sync:** Nog nooit uitgevoerd")
+        
+        # Show current interval
+        interval = sync_status['interval']
+        if interval == 3600:
+            st.write("⏱️ **Huidige interval:** Elk uur")
+        elif interval < 3600:
+            minutes = interval // 60
+            st.write(f"⏱️ **Huidige interval:** Elke {minutes} {'minuut' if minutes == 1 else 'minuten'}")
+        else:
+            hours = interval // 3600
+            st.write(f"⏱️ **Huidige interval:** Elke {hours} {'uur' if hours == 1 else 'uren'}")
+    
+    with col2:
+        st.markdown("#### ⚙️ Interval Configureren")
+        
+        with st.form("sync_interval_form"):
+            interval_options = {
+                900: "15 minuten",
+                1800: "30 minuten", 
+                3600: "1 uur",
+                7200: "2 uur",
+                14400: "4 uur",
+                28800: "8 uur",
+                43200: "12 uur",
+                86400: "24 uur"
+            }
+            
+            current_interval = sync_status['interval']
+            current_index = list(interval_options.keys()).index(current_interval) if current_interval in interval_options else 2
+            
+            selected_interval = st.selectbox(
+                "🕐 Kies synchronisatie interval:", 
+                list(interval_options.keys()),
+                format_func=lambda x: interval_options[x],
+                index=current_index,
+                key="sync_interval_select"
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_button = st.form_submit_button("💾 Interval Bijwerken", use_container_width=True)
+        
+        if submit_button:
+            with st.spinner("⚙️ Interval wordt bijgewerkt..."):
+                try:
+                    conn = sqlite3.connect('leveranciers_portal.db')
+                    c = conn.cursor()
+                    c.execute("UPDATE sync_control SET sync_interval = ? WHERE id = 1", (selected_interval,))
+                    conn.commit()
+                    conn.close()
+                    st.success(f"✅ Interval bijgewerkt naar **{interval_options[selected_interval]}**")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Fout bij bijwerken interval: {str(e)}")
+    
+    # API Usage Information
+    st.markdown("#### 📖 Over Synchronisatie")
+    st.markdown("""
+    <div style="
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        border-left: 4px solid #667eea;
+    ">
+        <h5>🔄 Hoe werkt synchronisatie?</h5>
+        <ul>
+            <li><strong>Automatisch:</strong> Volgens het ingestelde interval</li>
+            <li><strong>Handmatig:</strong> Via de sync knop</li>
+            <li><strong>Bij opstarten:</strong> Eerste keer wanneer app start</li>
+        </ul>
+        
+        <h5>⚡ Performance Optimalisatie:</h5>
+        <ul>
+            <li><strong>Incrementeel:</strong> Alleen gewijzigde records sinds laatste sync</li>
+            <li><strong>Gecached:</strong> E-mail verificatie gebruikt lokale cache</li>
+            <li><strong>Efficiënt:</strong> Minimale API-aanroepen</li>
+        </ul>
+        
+        <h5>💡 Aanbevelingen:</h5>
+        <ul>
+            <li><strong>Productie:</strong> 1-4 uur interval</li>
+            <li><strong>Development:</strong> 15-30 minuten voor testen</li>
+            <li><strong>Hoge activiteit:</strong> Korter interval voor real-time updates</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # MAIN APPLICATION
 def main():
