@@ -847,10 +847,8 @@ def supplier_page():
     
     # Sync status at top
     with st.container():
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-        st.markdown("### 🔄 Synchronisatie Status")
+        st.markdown('<div class="modern-card">### 🔄 Synchronisatie Status</div>', unsafe_allow_html=True)
         display_sync_status()
-        st.markdown('</div>', unsafe_allow_html=True)
     
     # Get user jobs
     email = st.session_state.get("user_email")
