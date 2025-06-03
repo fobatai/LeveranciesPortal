@@ -20,16 +20,13 @@ load_dotenv()
 # Add pandas options to avoid SettingWithCopyWarning
 pd.options.mode.copy_on_write = True
 
-# Professional CSS styling - Fixed syntax
+# Simple Professional CSS styling - No syntax conflicts
 def load_css():
-    css_code = """
+    st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    
     .stApp {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         font-family: 'Inter', sans-serif;
-        min-height: 100vh;
     }
     
     #MainMenu {visibility: hidden;}
@@ -37,15 +34,8 @@ def load_css():
     header {visibility: hidden;}
     .stDeployButton {visibility: hidden;}
     
-    .main .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-        max-width: 1200px;
-    }
-    
     .modern-card {
         background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
         border-radius: 16px;
         padding: 2rem;
         margin: 1.5rem 0;
@@ -62,7 +52,6 @@ def load_css():
     .main-header {
         text-align: center;
         background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(20px);
         border-radius: 20px;
         padding: 3rem 2rem;
         margin-bottom: 2rem;
@@ -78,24 +67,21 @@ def load_css():
         background: linear-gradient(135deg, #405189, #5a67d8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
     }
     
     .main-header p {
         color: #4a5568;
         font-size: 1.1rem;
-        font-weight: 400;
         margin: 0;
     }
     
     .stButton > button {
-        background: linear-gradient(135deg, #405189 0%, #5a67d8 100%);
+        background: linear-gradient(135deg, #405189, #5a67d8);
         color: white;
         border: none;
         border-radius: 12px;
         padding: 0.9rem 2rem;
         font-weight: 600;
-        font-size: 1rem;
         transition: all 0.3s ease;
         box-shadow: 0 4px 12px rgba(64, 81, 137, 0.3);
     }
@@ -105,48 +91,24 @@ def load_css():
         box-shadow: 0 6px 20px rgba(64, 81, 137, 0.4);
     }
     
-    .status-badge {
-        display: inline-block;
-        padding: 0.5rem 1.2rem;
+    .login-container {
+        max-width: 420px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
         border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-align: center;
-        margin: 0.2rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .status-in-progress {
-        background: linear-gradient(135deg, #3182ce, #4299e1);
-        color: white;
-    }
-    
-    .status-completed {
-        background: linear-gradient(135deg, #38a169, #48bb78);
-        color: white;
-    }
-    
-    .status-new {
-        background: linear-gradient(135deg, #805ad5, #9f7aea);
-        color: white;
+        padding: 3rem 2.5rem;
+        border: 1px solid rgba(64, 81, 137, 0.1);
+        box-shadow: 0 10px 40px rgba(64, 81, 137, 0.15);
     }
     
     .metric-card {
         background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
         border-radius: 16px;
         padding: 1.8rem;
         text-align: center;
         border: 1px solid rgba(64, 81, 137, 0.1);
         margin: 0.5rem;
         box-shadow: 0 4px 16px rgba(64, 81, 137, 0.08);
-        transition: all 0.3s ease;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(64, 81, 137, 0.12);
     }
     
     .metric-value {
@@ -155,7 +117,6 @@ def load_css():
         background: linear-gradient(135deg, #405189, #5a67d8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
         margin-bottom: 0.5rem;
     }
     
@@ -164,42 +125,6 @@ def load_css():
         font-weight: 500;
         font-size: 0.9rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div > select {
-        border-radius: 12px;
-        border: 2px solid rgba(64, 81, 137, 0.2);
-        background: rgba(255, 255, 255, 0.95);
-        font-family: 'Inter', sans-serif;
-        font-size: 1rem;
-        color: #2d3748;
-        padding: 0.8rem 1.2rem;
-        transition: all 0.3s ease;
-    }
-    
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus,
-    .stSelectbox > div > div > select:focus {
-        border-color: #405189;
-        box-shadow: 0 0 0 3px rgba(64, 81, 137, 0.1);
-    }
-    
-    .job-card {
-        background: rgba(255, 255, 255, 0.98);
-        border-radius: 16px;
-        padding: 2rem;
-        margin: 1.5rem 0;
-        border: 1px solid rgba(64, 81, 137, 0.1);
-        box-shadow: 0 6px 20px rgba(64, 81, 137, 0.08);
-        transition: all 0.3s ease;
-    }
-    
-    .job-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 30px rgba(64, 81, 137, 0.12);
     }
     
     .sync-indicator {
@@ -211,7 +136,6 @@ def load_css():
         margin: 1rem 0;
         border: 1px solid rgba(64, 81, 137, 0.1);
         box-shadow: 0 4px 16px rgba(64, 81, 137, 0.08);
-        transition: all 0.3s ease;
     }
     
     .sync-dot {
@@ -222,59 +146,45 @@ def load_css():
     }
     
     .sync-active {
-        background: linear-gradient(135deg, #38a169, #48bb78);
-        animation: pulse 2s infinite;
+        background: #38a169;
     }
     
     .sync-inactive {
-        background: linear-gradient(135deg, #405189, #5a67d8);
-        animation: pulse 3s infinite;
+        background: #405189;
     }
     
-    @keyframes pulse {
-        0% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.05); }
-        100% { opacity: 1; transform: scale(1); }
+    .job-card {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 16px;
+        padding: 2rem;
+        margin: 1.5rem 0;
+        border: 1px solid rgba(64, 81, 137, 0.1);
+        box-shadow: 0 6px 20px rgba(64, 81, 137, 0.08);
     }
     
-    .login-container {
-        max-width: 420px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.95);
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1.2rem;
         border-radius: 20px;
-        padding: 3rem 2.5rem;
-        border: 1px solid rgba(64, 81, 137, 0.1);
-        box-shadow: 0 10px 40px rgba(64, 81, 137, 0.15);
-        transition: all 0.3s ease;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0.2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
-    .login-container:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 15px 50px rgba(64, 81, 137, 0.2);
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 12px;
-        padding: 0.5rem;
-        border: 1px solid rgba(64, 81, 137, 0.1);
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        color: #4a5568;
-        background: transparent;
-        border: none;
-        padding: 0.8rem 1.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #405189, #5a67d8);
+    .status-in-progress {
+        background: #3182ce;
         color: white;
-        box-shadow: 0 2px 8px rgba(64, 81, 137, 0.3);
+    }
+    
+    .status-completed {
+        background: #38a169;
+        color: white;
+    }
+    
+    .status-new {
+        background: #805ad5;
+        color: white;
     }
     
     .modern-footer {
@@ -282,25 +192,25 @@ def load_css():
         color: #4a5568;
         margin-top: 3rem;
         padding: 2rem;
-        font-weight: 400;
-        font-size: 0.9rem;
         background: rgba(255, 255, 255, 0.8);
         border-radius: 16px;
         border: 1px solid rgba(64, 81, 137, 0.1);
     }
     
-    .stTextInput > label,
-    .stTextArea > label,
-    .stSelectbox > label {
-        color: #2d3748 !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        margin-bottom: 0.5rem !important;
+    .stTabs [data-baseweb="tab-list"] {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        padding: 0.5rem;
+        border: 1px solid rgba(64, 81, 137, 0.1);
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #405189, #5a67d8);
+        color: white;
+        border-radius: 8px;
     }
     </style>
-    """
-    
-    st.markdown(css_code, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     
     /* Professional metric cards */
     .metric-card {
