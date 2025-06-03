@@ -850,10 +850,11 @@ def supplier_page():
     """, unsafe_allow_html=True)
     
     # Sync status at top
-    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-    st.markdown("### 🔄 Synchronisatie Status")
-    display_sync_status()
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+        st.markdown("### 🔄 Synchronisatie Status")
+        display_sync_status()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Get user jobs
     email = st.session_state.get("user_email")
@@ -1151,10 +1152,11 @@ def admin_page():
     """, unsafe_allow_html=True)
     
     # Sync status
-    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-    st.markdown("### 🔄 Synchronisatie Beheer")
-    display_sync_status()
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+        st.markdown("### 🔄 Synchronisatie Beheer")
+        display_sync_status()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     tabs = st.tabs(["🏢 Klanten", "🔄 Status Mapping", "👥 Toegang", "⚙️ Sync Instellingen"])
     
@@ -1320,6 +1322,7 @@ def manage_progress_status_mappings_modern():
     conn.close()
     
     if klanten_df.empty:
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         st.markdown("""
         <div style="text-align: center; padding: 2rem;">
             <h4>⚠️ Geen klanten gevonden</h4>
@@ -1481,6 +1484,7 @@ def manage_supplier_access_modern():
     klanten = c.fetchall()
     
     if not klanten:
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         st.markdown("""
         <div style="text-align: center; padding: 2rem;">
             <h4>⚠️ Geen klanten gevonden</h4>
