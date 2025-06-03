@@ -20,46 +20,15 @@ load_dotenv()
 # Add pandas options to avoid SettingWithCopyWarning
 pd.options.mode.copy_on_write = True
 
-# Load CSS from external file
+# Load CSS from external file only
 def load_css():
     try:
         with open('styles.css', 'r') as f:
             css_content = f.read()
         st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
     except FileNotFoundError:
-        # Fallback basic styling if CSS file not found
-        st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            font-family: Inter, sans-serif;
-        }
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .modern-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            margin: 1rem 0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        .main-header {
-            text-align: center;
-            background: white;
-            border-radius: 20px;
-            padding: 3rem 2rem;
-            margin-bottom: 2rem;
-        }
-        .stButton > button {
-            background: #405189;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 0.9rem 2rem;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        st.error("CSS file 'styles.css' not found. Please create the CSS file in the same directory as this script.")
+        st.info("The app will work but without custom styling.")
     
     /* Professional metric cards */
     .metric-card {
