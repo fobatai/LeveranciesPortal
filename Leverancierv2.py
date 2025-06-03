@@ -765,7 +765,6 @@ def login_page():
                         st.session_state["logged_in"] = True
                         st.session_state["user_email"] = email
                         st.success("🎉 Succesvol ingelogd!")
-                        st.balloons()
                         time.sleep(2)
                         st.rerun()
                     else:
@@ -822,7 +821,6 @@ def login_page():
                 st.session_state["logged_in"] = True
                 st.session_state["user_email"] = admin_email
                 st.success("🎖️ Admin toegang verleend!")
-                st.balloons()
                 time.sleep(2)
                 st.rerun()
             else:
@@ -1136,7 +1134,6 @@ def display_customer_jobs_modern(klant_id, jobs, mappings, jobs_data):
                 conn.commit()
                 conn.close()
                 
-                st.balloons()
                 time.sleep(2)
                 st.rerun()
             else:
@@ -1186,7 +1183,7 @@ def manage_customers_modern():
             naam = st.text_input("Klantnaam", placeholder="Bijv. Acme Corp")
             domein = st.text_input("Domein", placeholder="025105.ultimo-demo.net")
         with col2:
-            api_key = st.text_input("API Sleutel", type="password", placeholder="Voer API key in")
+            api_key = st.text_input("API Sleutel", placeholder="Voer API key in")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -1215,7 +1212,6 @@ def manage_customers_modern():
                 conn.commit()
                 conn.close()
                 st.success(f"🎉 Klant **{naam}** succesvol toegevoegd!")
-                st.balloons()
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
@@ -1401,7 +1397,6 @@ def manage_progress_status_mappings_modern():
                 """, (klant_id, van_status, naar_status))
                 conn.commit()
                 st.success("🎉 Toewijzing succesvol toegevoegd!")
-                st.balloons()
                 time.sleep(1)
                 st.rerun()
             
