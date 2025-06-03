@@ -1318,7 +1318,6 @@ def manage_progress_status_mappings_modern():
     conn.close()
     
     if klanten_df.empty:
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         st.markdown("""
         <div style="text-align: center; padding: 2rem;">
             <h4>⚠️ Geen klanten gevonden</h4>
