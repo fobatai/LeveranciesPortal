@@ -20,195 +20,46 @@ load_dotenv()
 # Add pandas options to avoid SettingWithCopyWarning
 pd.options.mode.copy_on_write = True
 
-# Simple CSS styling - Guaranteed to work
+# Load CSS from external file
 def load_css():
-    st.markdown(
-        """
+    try:
+        with open('styles.css', 'r') as f:
+            css_content = f.read()
+        st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        # Fallback basic styling if CSS file not found
+        st.markdown("""
         <style>
         .stApp {
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: Inter, sans-serif;
         }
-        
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
-        .stDeployButton {visibility: hidden;}
-        
         .modern-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: white;
             border-radius: 16px;
             padding: 2rem;
-            margin: 1.5rem 0;
-            box-shadow: 0 4px 20px rgba(64, 81, 137, 0.1);
-            border: 1px solid rgba(64, 81, 137, 0.1);
-            transition: all 0.3s ease;
+            margin: 1rem 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
-        
-        .modern-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(64, 81, 137, 0.15);
-        }
-        
         .main-header {
             text-align: center;
-            background: rgba(255, 255, 255, 0.9);
+            background: white;
             border-radius: 20px;
             padding: 3rem 2rem;
             margin-bottom: 2rem;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-            box-shadow: 0 8px 32px rgba(64, 81, 137, 0.1);
         }
-        
-        .main-header h1 {
-            color: #2d3748;
-            font-size: 2.8rem;
-            font-weight: 700;
-            margin-bottom: 0.8rem;
-        }
-        
-        .main-header p {
-            color: #4a5568;
-            font-size: 1.1rem;
-            margin: 0;
-        }
-        
         .stButton > button {
-            background: linear-gradient(135deg, #405189, #5a67d8);
+            background: #405189;
             color: white;
             border: none;
             border-radius: 12px;
             padding: 0.9rem 2rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(64, 81, 137, 0.3);
-        }
-        
-        .stButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(64, 81, 137, 0.4);
-        }
-        
-        .login-container {
-            max-width: 420px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 3rem 2.5rem;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-            box-shadow: 0 10px 40px rgba(64, 81, 137, 0.15);
-        }
-        
-        .metric-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 1.8rem;
-            text-align: center;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-            margin: 0.5rem;
-            box-shadow: 0 4px 16px rgba(64, 81, 137, 0.08);
-        }
-        
-        .metric-value {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: #405189;
-            margin-bottom: 0.5rem;
-        }
-        
-        .metric-label {
-            color: #4a5568;
-            font-weight: 500;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
-        
-        .sync-indicator {
-            display: flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 1.2rem 1.8rem;
-            margin: 1rem 0;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-            box-shadow: 0 4px 16px rgba(64, 81, 137, 0.08);
-        }
-        
-        .sync-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 1rem;
-        }
-        
-        .sync-active {
-            background: #38a169;
-        }
-        
-        .sync-inactive {
-            background: #405189;
-        }
-        
-        .job-card {
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 16px;
-            padding: 2rem;
-            margin: 1.5rem 0;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-            box-shadow: 0 6px 20px rgba(64, 81, 137, 0.08);
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 0.5rem 1.2rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin: 0.2rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .status-in-progress {
-            background: #3182ce;
-            color: white;
-        }
-        
-        .status-completed {
-            background: #38a169;
-            color: white;
-        }
-        
-        .status-new {
-            background: #805ad5;
-            color: white;
-        }
-        
-        .modern-footer {
-            text-align: center;
-            color: #4a5568;
-            margin-top: 3rem;
-            padding: 2rem;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 16px;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-        }
-        
-        .stTabs [data-baseweb="tab-list"] {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 12px;
-            padding: 0.5rem;
-            border: 1px solid rgba(64, 81, 137, 0.1);
-        }
-        
-        .stTabs [aria-selected="true"] {
-            background: #405189;
-            color: white;
-            border-radius: 8px;
         }
         </style>
-        """, 
-        unsafe_allow_html=True
-    )
+        """, unsafe_allow_html=True)
     
     /* Professional metric cards */
     .metric-card {
