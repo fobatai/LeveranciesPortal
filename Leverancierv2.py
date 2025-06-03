@@ -1043,26 +1043,24 @@ def display_customer_jobs_modern(klant_id, jobs, mappings, jobs_data):
         return
     
     # Job details card
-    st.markdown('<div class="job-card">', unsafe_allow_html=True)
-    st.markdown("### 📝 Werkorder Details")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"**🆔 ID:** `{selected_job['id']}`")
-        st.markdown(f"**📋 Omschrijving:** {selected_job['omschrijving']}")
-    
-    with col2:
-        st.markdown(f"**🔧 Apparatuur:** {selected_job['apparatuur_omschrijving'] or 'Niet gespecificeerd'}")
+    with st.container():
+        st.markdown('<div class="job-card"><h3>📝 Werkorder Details</h3></div>', unsafe_allow_html=True)
         
-        status_id = selected_job["voortgang_status"]
-        status_desc = status_mapping.get(status_id, f"Onbekend ({status_id})")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**🆔 ID:** `{selected_job['id']}`")
+            st.markdown(f"**📋 Omschrijving:** {selected_job['omschrijving']}")
         
-        st.markdown(f"""
-        **📊 Huidige Status:** 
-        <span class="status-badge status-in-progress">{status_id}: {status_desc}</span>
-        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"**🔧 Apparatuur:** {selected_job['apparatuur_omschrijving'] or 'Niet gespecificeerd'}")
+            
+            status_id = selected_job["voortgang_status"]
+            status_desc = status_mapping.get(status_id, f"Onbekend ({status_id})")
+            
+            st.markdown(f"""
+            **📊 Huidige Status:** 
+            <span class="status-badge status-in-progress">{status_id}: {status_desc}</span>
+            """, unsafe_allow_html=True)
     
     # Completion form
     with st.container():
@@ -1089,48 +1087,65 @@ def display_customer_jobs_modern(klant_id, jobs, mappings, jobs_data):
                 image3 = st.file_uploader("Afbeelding 3", type=["jpg", "jpeg", "png"], key="img3_modern")  
                 image4 = st.file_uploader("Afbeelding 4", type=["jpg", "jpeg", "png"], key="img4_modern")
             
+            # Document upload
+            st.markdown("📄 **Documenten Uploaden** (Optioneel)")
+            col1, col2 = st.columns(2)
+            with col1:
+                doc1 = st.file_uploader("Document 1", type=["pdf", "doc", "docx", "xls", "xlsx", "txt"], key="doc1_modern")
+                doc2 = st.file_uploader("Document 2", type=["pdf", "doc", "docx", "xls", "xlsx", "txt"], key="doc2_modern")
+            with col2:
+                doc3 = st.file_uploader("Document 3", type=["pdf", "doc", "docx", "xls", "xlsx", "txt"], key="doc3_modern")
+                doc4 = st.file_uploader("Document 4", type=["pdf", "doc", "docx", "xls", "xlsx", "txt"], key="doc4_modern")
+            
             submit_button = st.form_submit_button("🚀 Werkorder Afronden", use_container_width=True)
-        
-        if submit_button:
-            target_status = mappings.get(selected_job["voortgang_status"])
             
-            if not target_status:
-                st.error("❌ Geen doelstatus configuratie gevonden voor deze werkorder.")
-                return
-            
-            with st.spinner("⏳ Werkorder wordt bijgewerkt..."):
-                if update_job_status(domein, api_key, selected_job_id, target_status, feedback):
-                    st.success(f"✅ Werkorder {selected_job_id} succesvol bijgewerkt!")
-                    
-                    # Handle image upload
-                    images = [image1, image2, image3, image4]
-                    if any(img is not None for img in images):
-                        with st.spinner("📤 Afbeeldingen worden geüpload..."):
-                            # Placeholder for image upload function
-                            st.info("📸 Afbeelding upload functionaliteit wordt toegevoegd...")
-                    
-                    # Update local cache
-                    conn = sqlite3.connect('leveranciers_portal.db')
-                    c = conn.cursor()
-                    
-                    job_data = jobs_data[selected_job_id]
-                    job_data["ProgressStatus"] = target_status
-                    if feedback:
-                        job_data["FeedbackText"] = feedback
-                    
-                    c.execute("""
-                    UPDATE jobs_cache
-                    SET voortgang_status = ?, data = ?
-                    WHERE id = ? AND klant_id = ?
-                    """, (target_status, json.dumps(job_data), selected_job_id, klant_id))
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    time.sleep(2)
-                    st.rerun()
+            # Handle form submission within the form
+            if submit_button:
+                target_status = mappings.get(selected_job["voortgang_status"])
+                
+                if not target_status:
+                    st.error("❌ Geen doelstatus configuratie gevonden voor deze werkorder.")
                 else:
-                    st.error("❌ Bijwerken van werkorder mislukt. Probeer het opnieuw.")
+                    with st.spinner("⏳ Werkorder wordt bijgewerkt..."):
+                        if update_job_status(domein, api_key, selected_job_id, target_status, feedback):
+                            st.success(f"✅ Werkorder {selected_job_id} succesvol bijgewerkt!")
+                            
+                            # Handle file uploads
+                            images = [image1, image2, image3, image4]
+                            documents = [doc1, doc2, doc3, doc4]
+                            
+                            if any(img is not None for img in images):
+                                with st.spinner("📤 Afbeeldingen worden geüpload..."):
+                                    # Placeholder for image upload function
+                                    st.info("📸 Afbeelding upload functionaliteit wordt toegevoegd...")
+                            
+                            if any(doc is not None for doc in documents):
+                                with st.spinner("📄 Documenten worden geüpload..."):
+                                    # Placeholder for document upload function
+                                    st.info("📄 Document upload functionaliteit wordt toegevoegd...")
+                            
+                            # Update local cache
+                            conn = sqlite3.connect('leveranciers_portal.db')
+                            c = conn.cursor()
+                            
+                            job_data = jobs_data[selected_job_id]
+                            job_data["ProgressStatus"] = target_status
+                            if feedback:
+                                job_data["FeedbackText"] = feedback
+                            
+                            c.execute("""
+                            UPDATE jobs_cache
+                            SET voortgang_status = ?, data = ?
+                            WHERE id = ? AND klant_id = ?
+                            """, (target_status, json.dumps(job_data), selected_job_id, klant_id))
+                            
+                            conn.commit()
+                            conn.close()
+                            
+                            time.sleep(2)
+                            st.rerun()
+                        else:
+                            st.error("❌ Bijwerken van werkorder mislukt. Probeer het opnieuw.")
 
 # MODERN ADMIN PAGE - Fully functional
 def admin_page():
