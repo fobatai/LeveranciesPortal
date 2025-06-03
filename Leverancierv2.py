@@ -20,34 +20,29 @@ load_dotenv()
 # Add pandas options to avoid SettingWithCopyWarning
 pd.options.mode.copy_on_write = True
 
-# Ultra-Professional CSS styling
+# Professional CSS styling - Fixed syntax
 def load_css():
-    st.markdown("""
+    css_code = """
     <style>
-    /* Import professional fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
-    /* Professional gradient background */
     .stApp {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         font-family: 'Inter', sans-serif;
         min-height: 100vh;
     }
     
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .stDeployButton {visibility: hidden;}
     
-    /* Main content area */
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
         max-width: 1200px;
     }
     
-    /* Professional card styling */
     .modern-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
@@ -64,7 +59,6 @@ def load_css():
         box-shadow: 0 8px 30px rgba(64, 81, 137, 0.15);
     }
     
-    /* Professional header styling */
     .main-header {
         text-align: center;
         background: rgba(255, 255, 255, 0.9);
@@ -94,7 +88,6 @@ def load_css():
         margin: 0;
     }
     
-    /* Professional button styling */
     .stButton > button {
         background: linear-gradient(135deg, #405189 0%, #5a67d8 100%);
         color: white;
@@ -112,7 +105,6 @@ def load_css():
         box-shadow: 0 6px 20px rgba(64, 81, 137, 0.4);
     }
     
-    /* Professional status badges */
     .status-badge {
         display: inline-block;
         padding: 0.5rem 1.2rem;
@@ -140,7 +132,6 @@ def load_css():
         color: white;
     }
     
-    /* Professional metric cards */
     .metric-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
@@ -176,7 +167,6 @@ def load_css():
         letter-spacing: 0.5px;
     }
     
-    /* Professional form styling */
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     .stSelectbox > div > div > select {
@@ -197,7 +187,6 @@ def load_css():
         box-shadow: 0 0 0 3px rgba(64, 81, 137, 0.1);
     }
     
-    /* Professional job card styling */
     .job-card {
         background: rgba(255, 255, 255, 0.98);
         border-radius: 16px;
@@ -213,7 +202,6 @@ def load_css():
         box-shadow: 0 10px 30px rgba(64, 81, 137, 0.12);
     }
     
-    /* Professional sync indicator */
     .sync-indicator {
         display: flex;
         align-items: center;
@@ -249,7 +237,6 @@ def load_css():
         100% { opacity: 1; transform: scale(1); }
     }
     
-    /* Professional login container */
     .login-container {
         max-width: 420px;
         margin: 0 auto;
@@ -266,7 +253,6 @@ def load_css():
         box-shadow: 0 15px 50px rgba(64, 81, 137, 0.2);
     }
     
-    /* Professional tab styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 4px;
         background: rgba(255, 255, 255, 0.9);
@@ -291,7 +277,6 @@ def load_css():
         box-shadow: 0 2px 8px rgba(64, 81, 137, 0.3);
     }
     
-    /* Professional footer */
     .modern-footer {
         text-align: center;
         color: #4a5568;
@@ -304,7 +289,6 @@ def load_css():
         border: 1px solid rgba(64, 81, 137, 0.1);
     }
     
-    /* Professional label styling */
     .stTextInput > label,
     .stTextArea > label,
     .stSelectbox > label {
@@ -314,7 +298,9 @@ def load_css():
         margin-bottom: 0.5rem !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """
+    
+    st.markdown(css_code, unsafe_allow_html=True)
     
     /* Professional metric cards */
     .metric-card {
