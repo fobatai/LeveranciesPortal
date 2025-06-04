@@ -191,7 +191,8 @@ def update_job_status(domein, api_key, job_id, voortgang_status, feedback_tekst)
         feedback_tekst = feedback_tekst[:max_feedback_length]
     
     data = {
-        "ProgressStatus": voortgang_status
+        "ProgressStatus": voortgang_status,
+        "RecordStatus": "016"  # Zet RecordStatus naar 016
     }
     
     if feedback_tekst and feedback_tekst.strip():
