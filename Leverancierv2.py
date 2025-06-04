@@ -846,9 +846,11 @@ def supplier_page():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sync status at top
-    st.markdown('<div class="modern-card"><h3>🔄 Synchronisatie Status</h3></div>', unsafe_allow_html=True)
-    display_sync_status()
+    # Only show sync status for admin users
+    user_email = st.session_state.get("user_email", "")
+    if user_email == "admin@example.com":
+        st.markdown('<div class="modern-card"><h3>🔄 Synchronisatie Status</h3></div>', unsafe_allow_html=True)
+        display_sync_status()
     
     # Get user jobs
     email = st.session_state.get("user_email")
@@ -1773,10 +1775,7 @@ def main():
                 if st.button("⚙️ Admin Dashboard", use_container_width=True):
                     st.session_state["current_page"] = "admin"
                     st.rerun()
-                
-                if st.button("🔧 Leverancier View", use_container_width=True):
-                    st.session_state["current_page"] = "supplier"
-                    st.rerun()
+                # Removed leverancier view button for admin
             else:
                 if st.button("🏠 Dashboard", use_container_width=True):
                     st.session_state["current_page"] = "supplier"
